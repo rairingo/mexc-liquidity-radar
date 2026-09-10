@@ -172,7 +172,7 @@ async def background_rotation_worker():
 
         pool = list(GLOBAL_STATE["target_pool"])
         if not pool:
-            await asyncio.sleep(3.0)
+            await asyncio.sleep(10.0)
             await update_target_pool()
             continue
 
