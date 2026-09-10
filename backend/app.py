@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+import json
 import logging
 import os
 import time
@@ -47,9 +48,9 @@ GLOBAL_STATE: Dict[str, Any] = {
     "is_running": True,
 }
 
-# 巡回設定（MEXC APIレート制限遵守: 最大16 req/sec未満の安全巡回）
-BATCH_SIZE = 8            # 1バッチあたりの並行取得数
-BATCH_SLEEP_SECONDS = 0.5 # バッチ間のウェイト（レート制限20req/secを絶対に踏まない安全設計）
+# 巡回設定（MEXC APIレート制限遵守: 1秒あたり3〜4 reqの極めて安全な巡回）
+BATCH_SIZE = 3            # 1バッチあたりの並行取得数
+BATCH_SLEEP_SECONDS = 1.0 # バッチ間のウェイト（WAFと429を完全に回避）
 
 async def analyze_single_symbol(item: Dict[str, Any], use_klines: bool = False) -> Optional[Dict[str, Any]]:
     symbol = item.get("symbol", "")
@@ -143,6 +144,14 @@ async def update_target_pool():
         GLOBAL_STATE["last_ticker_sync"] = time.time()
         logger.info(f"Updated monitoring pool to ALL eligible symbols: {len(GLOBAL_STATE['target_pool'])} symbols")
 
+        # 銘柄リストをディスクキャッシュに保存
+        try:
+            cache_file = Path(__file__).resolve().parent / "pool_cache.json"
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(filtered, f)
+        except Exception:
+            pass
+
         # 監視対象外となった古い銘柄をキャッシュから安全にパージ（メモリ健全化）
         valid_symbols = {t.get("symbol") for t in filtered if t.get("symbol")}
         stale_symbols = [s for s in list(GLOBAL_STATE["items_map"].keys()) if s not in valid_symbols]
@@ -152,6 +161,19 @@ async def update_target_pool():
             logger.info(f"Cleaned up {len(stale_symbols)} stale symbols from memory cache")
     except Exception as e:
         logger.error(f"Failed updating target pool: {e}")
+        GLOBAL_STATE["backoff_until"] = time.time() + 60.0
+        # ディスクキャッシュからの復元を試行
+        if not GLOBAL_STATE["target_pool"]:
+            try:
+                cache_file = Path(__file__).resolve().parent / "pool_cache.json"
+                if cache_file.exists():
+                    with open(cache_file, "r", encoding="utf-8") as f:
+                        cached = json.load(f)
+                    if cached:
+                        GLOBAL_STATE["target_pool"] = cached
+                        logger.info(f"Restored {len(cached)} symbols from disk cache")
+            except Exception:
+                pass
 
 
 async def background_rotation_worker():
