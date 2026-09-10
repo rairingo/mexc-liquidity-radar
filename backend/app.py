@@ -33,7 +33,7 @@ EXCLUDED_SYMBOLS = {
 # 法定通貨・ステーブルコインキーワード（シンボルに含まれる場合に除外）
 FIAT_STABLE_KEYWORDS = ["USD", "EUR", "GBP", "JPY", "BRL", "TRY", "AUD", "CAD", "CHF"]
 
-MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "mexc-radar")
+MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "3tZTP")
 
 client = MexcClient()
 

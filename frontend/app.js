@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS = {
 let userSettings = { ...DEFAULT_SETTINGS };
 
 // MEXC Referral Invite Code for Affiliate Kickbacks
-const MEXC_INVITE_CODE = "mexc-radar";
+const MEXC_INVITE_CODE = "3tZTP";
 
 function getMexcTradeUrl(item) {
   if (item && item.mexc_trade_url) {

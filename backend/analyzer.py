@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "mexc-radar")
+MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "3tZTP")
 
 class LiquidityAnalyzer:
     """
