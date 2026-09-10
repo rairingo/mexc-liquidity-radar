@@ -1,0 +1,979 @@
+/* ==========================================================================
+   MEXC Liquidity Terminal - TradingView Inspired Professional Financial UI
+   Clean, Solid, Pro-Trader Aesthetics without AI Glitz or Gimmicks
+   ========================================================================== */
+
+:root {
+  /* TradingView Financial Dark Palette */
+  --tv-bg-base: #131722;
+  --tv-bg-surface: #1e222d;
+  --tv-bg-elevated: #242835;
+  --tv-bg-hover: #2a2e39;
+  --tv-bg-active: #363a45;
+
+  /* Borders & Dividers */
+  --tv-border: #2a2e39;
+  --tv-border-subtle: #20242f;
+  --tv-border-hover: #434651;
+
+  /* Professional Trading Colors */
+  --tv-blue: #2962ff;
+  --tv-blue-hover: #1e53e5;
+  --tv-blue-tint: rgba(41, 98, 255, 0.12);
+  --tv-green: #089981;
+  --tv-green-tint: rgba(8, 153, 129, 0.12);
+  --tv-red: #f23645;
+  --tv-red-tint: rgba(242, 54, 69, 0.12);
+  --tv-yellow: #ff9800;
+  --tv-yellow-tint: rgba(255, 152, 0, 0.12);
+
+  /* Typography Colors */
+  --tv-text-primary: #d1d4dc;
+  --tv-text-secondary: #787b86;
+  --tv-text-muted: #5d606b;
+  --tv-text-bright: #f0f3fa;
+
+  /* Fonts */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
+
+  /* Precision Radii (Compact & Sharp) */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body.tv-theme {
+  background-color: var(--tv-bg-base);
+  color: var(--tv-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   Top Navigation Bar (TradingView Terminal Style)
+   ========================================================================== */
+.tv-navbar {
+  height: 48px;
+  background-color: var(--tv-bg-surface);
+  border-bottom: 1px solid var(--tv-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tv-text-bright);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.2px;
+}
+.brand-icon {
+  color: var(--tv-blue);
+}
+
+.brand-tag {
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+  border-left: 1px solid var(--tv-border);
+  padding-left: 12px;
+  font-weight: 500;
+}
+
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--tv-green-tint);
+  border: 1px solid rgba(8, 153, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-green);
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--tv-green);
+  box-shadow: 0 0 6px var(--tv-green);
+}
+
+.sync-status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Language Selector */
+.lang-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  height: 30px;
+}
+.globe-icon {
+  color: var(--tv-text-secondary);
+}
+.tv-select {
+  background: transparent;
+  border: none;
+  color: var(--tv-text-primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+.tv-select option {
+  background-color: var(--tv-bg-surface);
+  color: var(--tv-text-primary);
+}
+
+/* Buttons */
+.tv-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.tv-btn-primary {
+  background-color: var(--tv-blue);
+  color: #fff;
+  border: 1px solid var(--tv-blue);
+}
+.tv-btn-primary:hover {
+  background-color: var(--tv-blue-hover);
+  border-color: var(--tv-blue-hover);
+}
+
+.tv-btn-secondary {
+  background-color: transparent;
+  color: var(--tv-text-secondary);
+  border: 1px solid var(--tv-border);
+}
+.tv-btn-secondary:hover {
+  background-color: var(--tv-bg-hover);
+  color: var(--tv-text-bright);
+  border-color: var(--tv-border-hover);
+}
+
+.refresh-icon.rotating {
+  animation: spin 0.8s infinite linear;
+}
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   Terminal Body Layout
+   ========================================================================== */
+.terminal-body {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 16px 20px 60px;
+}
+
+/* ==========================================================================
+   Snapshot Metrics Bar
+   ========================================================================== */
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 960px) {
+  .metrics-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.metric-box {
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+
+.metric-box.alert-box {
+  border-left: 3px solid var(--tv-red);
+}
+
+.metric-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--tv-text-secondary);
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+.metric-number {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+  line-height: 1.2;
+}
+
+.metric-desc {
+  font-size: 11px;
+  color: var(--tv-text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.color-red { color: var(--tv-red) !important; }
+.color-green { color: var(--tv-green) !important; }
+.color-yellow { color: var(--tv-yellow) !important; }
+
+/* ==========================================================================
+   TradingView Tabs Bar (Underline Active)
+   ========================================================================== */
+.tv-tabs-bar {
+  display: flex;
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+
+.tv-tab {
+  flex: 1;
+  min-width: 220px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 10px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: all 0.15s ease;
+}
+
+.tv-tab:not(:last-child) {
+  border-right: 1px solid var(--tv-border);
+}
+
+.tv-tab:hover {
+  background-color: var(--tv-bg-hover);
+}
+
+.tv-tab.active {
+  background-color: var(--tv-bg-elevated);
+  border-bottom-color: var(--tv-blue);
+}
+.tv-tab.tab-red.active {
+  border-bottom-color: var(--tv-red);
+}
+.tv-tab.tab-green.active {
+  border-bottom-color: var(--tv-green);
+}
+
+.tab-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+}
+.tab-sublabel {
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Terminal Toolbar (Search, Sort Pills, View Switcher)
+   ========================================================================== */
+.terminal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.toolbar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  height: 32px;
+  min-width: 260px;
+}
+.toolbar-search svg {
+  color: var(--tv-text-secondary);
+}
+.toolbar-search input {
+  background: transparent;
+  border: none;
+  color: var(--tv-text-bright);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+}
+.toolbar-search input::placeholder {
+  color: var(--tv-text-muted);
+}
+
+.toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-prefix {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tv-text-secondary);
+  margin-right: 2px;
+}
+
+.tv-pill {
+  background-color: transparent;
+  border: 1px solid var(--tv-border);
+  color: var(--tv-text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tv-pill:hover {
+  background-color: var(--tv-bg-hover);
+  color: var(--tv-text-primary);
+  border-color: var(--tv-border-hover);
+}
+.tv-pill.active {
+  background-color: var(--tv-blue-tint);
+  color: var(--tv-blue);
+  border-color: rgba(41, 98, 255, 0.5);
+  font-weight: 600;
+}
+
+.view-switchers {
+  display: flex;
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.view-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--tv-text-secondary);
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.view-toggle-btn:hover {
+  color: var(--tv-text-primary);
+}
+.view-toggle-btn.active {
+  background-color: var(--tv-bg-elevated);
+  color: var(--tv-text-bright);
+}
+
+/* ==========================================================================
+   Loader
+   ========================================================================== */
+.terminal-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+}
+.tv-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--tv-border);
+  border-top-color: var(--tv-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+.loader-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tv-text-bright);
+}
+.loader-sub {
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   TradingView Screener Table View (Pixel-Perfect Financial Data Grid)
+   ========================================================================== */
+.screener-table-wrapper {
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+}
+
+.tv-screener-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.tv-screener-table thead th {
+  background-color: var(--tv-bg-surface);
+  color: var(--tv-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--tv-border);
+  white-space: nowrap;
+}
+
+.tv-screener-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--tv-border-subtle);
+  color: var(--tv-text-primary);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+.tv-screener-table tbody tr {
+  transition: background-color 0.1s ease;
+}
+.tv-screener-table tbody tr:hover {
+  background-color: var(--tv-bg-hover);
+}
+
+/* Table Cell Details */
+.col-symbol {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--tv-text-bright);
+}
+.tv-symbol-link {
+  color: var(--tv-text-bright);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.tv-symbol-link:hover {
+  color: var(--tv-blue);
+  text-decoration: underline;
+}
+.col-type-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  text-transform: uppercase;
+}
+.tag-long {
+  background-color: var(--tv-red-tint);
+  color: var(--tv-red);
+  border: 1px solid rgba(242, 54, 69, 0.3);
+}
+.tag-short {
+  background-color: var(--tv-green-tint);
+  color: var(--tv-green);
+  border: 1px solid rgba(8, 153, 129, 0.3);
+}
+
+.col-mono {
+  font-family: var(--font-mono) !important;
+  font-size: 12px;
+}
+
+.score-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-xs);
+  display: inline-block;
+}
+.badge-prob {
+  background-color: var(--tv-blue-tint);
+  color: var(--tv-blue);
+  border: 1px solid rgba(41, 98, 255, 0.3);
+}
+.badge-impact {
+  background-color: var(--tv-yellow-tint);
+  color: var(--tv-yellow);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+.badge-impact.high {
+  background-color: var(--tv-red-tint);
+  color: var(--tv-red);
+  border: 1px solid rgba(242, 54, 69, 0.4);
+}
+
+.tv-table-link {
+  color: var(--tv-blue);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+.tv-table-link:hover {
+  background-color: var(--tv-blue-tint);
+  border-color: rgba(41, 98, 255, 0.3);
+}
+
+/* ==========================================================================
+   TradingView Cards Grid View
+   ========================================================================== */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.tv-card {
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.tv-card:hover {
+  border-color: var(--tv-border-hover);
+  background-color: var(--tv-bg-elevated);
+}
+
+.tv-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.card-sym-block {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.card-symbol {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+}
+.card-price {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tv-text-secondary);
+}
+
+.card-badges-row {
+  display: flex;
+  gap: 6px;
+}
+
+.card-type-row {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Target Cost Highlight Container */
+.card-cost-panel {
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.card-cost-panel.panel-down {
+  border-left: 3px solid var(--tv-red);
+}
+.card-cost-panel.panel-up {
+  border-left: 3px solid var(--tv-green);
+}
+
+.cost-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+  margin-bottom: 2px;
+}
+.cost-amount {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+  line-height: 1.2;
+}
+.cost-desc {
+  font-size: 11px;
+  color: var(--tv-text-muted);
+  margin-top: 4px;
+}
+
+/* Card Metrics Key-Value */
+.card-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  border-top: 1px solid var(--tv-border-subtle);
+  padding-top: 8px;
+}
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.stat-row-label {
+  color: var(--tv-text-secondary);
+}
+.stat-row-val {
+  font-family: var(--font-mono);
+  color: var(--tv-text-primary);
+  font-weight: 500;
+}
+
+/* Card Button */
+.card-action-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  color: var(--tv-blue);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 0;
+  border-radius: var(--radius-xs);
+  transition: all 0.15s ease;
+}
+.card-action-btn:hover {
+  background-color: var(--tv-blue);
+  color: #fff;
+  border-color: var(--tv-blue);
+}
+
+/* Load More Button */
+.load-more-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+.tv-load-btn {
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  color: var(--tv-text-primary);
+  padding: 8px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tv-load-btn:hover {
+  background-color: var(--tv-bg-hover);
+  border-color: var(--tv-border-hover);
+  color: var(--tv-text-bright);
+}
+
+/* ==========================================================================
+   Methodology Modal
+   ========================================================================== */
+.tv-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.65);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.tv-modal-window {
+  background-color: var(--tv-bg-surface);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+.tv-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--tv-border);
+}
+.modal-head-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tv-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--tv-text-secondary);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tv-modal-close:hover {
+  color: var(--tv-text-bright);
+}
+
+.tv-modal-content {
+  padding: 16px;
+  overflow-y: auto;
+  line-height: 1.5;
+}
+
+.spec-section {
+  margin-bottom: 16px;
+}
+.spec-section h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tv-blue);
+  margin-bottom: 4px;
+}
+.spec-section p {
+  font-size: 12px;
+  color: var(--tv-text-primary);
+  margin-bottom: 6px;
+}
+.tv-code-box {
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #56b6c2;
+}
+.tv-disclaimer {
+  background-color: var(--tv-yellow-tint);
+  border: 1px solid rgba(255, 152, 0, 0.25);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+}
+.tv-disclaimer h4 {
+  color: var(--tv-yellow);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Settings & Custom Thresholds Modal (TradingView Style)
+   ========================================================================== */
+.tv-settings-window {
+  max-width: 600px;
+}
+
+.settings-group {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.settings-group:last-of-type {
+  border-bottom: none;
+  margin-bottom: 8px;
+  padding-bottom: 0;
+}
+
+.settings-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--tv-blue);
+  margin-bottom: 14px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.settings-label-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-label-col label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tv-text-bright);
+  margin-bottom: 2px;
+}
+
+.settings-sub {
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+}
+
+.settings-input-col {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 180px;
+  justify-content: flex-end;
+}
+
+.settings-input-col .tv-select {
+  width: 140px;
+}
+
+/* Custom Range Slider */
+.tv-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  background: var(--tv-border);
+  border-radius: 2px;
+  outline: none;
+  transition: background 0.15s ease;
+}
+
+.tv-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tv-blue);
+  cursor: pointer;
+  border: 2px solid var(--tv-bg-surface);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  transition: transform 0.1s ease, background-color 0.15s ease;
+}
+
+.tv-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: #3b7cff;
+}
+
+.range-display {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tv-text-bright);
+  min-width: 48px;
+  text-align: right;
+  background: var(--tv-bg-base);
+  padding: 3px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--tv-border);
+}
+
+.settings-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--tv-border);
+  margin-top: 10px;
+}
+

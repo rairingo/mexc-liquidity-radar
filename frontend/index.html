@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MEXC Liquidity Terminal - Orderbook Radar & Liquidation Screener</title>
+  <!-- Pro Finance Typography: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="tv-theme">
+  <!-- Top Financial Navigation Bar -->
+  <header class="tv-navbar">
+    <div class="nav-left">
+      <div class="brand-logo">
+        <svg class="brand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 3v18h18"/>
+          <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+        </svg>
+        <span class="brand-name" data-i18n="appTitle">MEXC Liquidity Terminal</span>
+      </div>
+      <div class="brand-tag" data-i18n="appSubtitle">Altcoin Orderbook Radar & Liquidation Hunter</div>
+    </div>
+
+    <div class="nav-center">
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span class="live-text" data-i18n="marketLive">MEXC SPOT LIVE</span>
+      </div>
+      <div class="sync-status" id="last-sync-time">Last Update: Scanning...</div>
+    </div>
+
+    <div class="nav-right">
+      <!-- Language Selector Dropdown -->
+      <div class="lang-selector-wrapper">
+        <svg class="globe-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <select id="lang-select" class="tv-select">
+          <option value="en">English (EN)</option>
+          <option value="ja">日本語 (JA)</option>
+          <option value="zh">简体中文 (ZH)</option>
+          <option value="ko">한국어 (KO)</option>
+          <option value="es">Español (ES)</option>
+          <option value="vi">Tiếng Việt (VI)</option>
+        </select>
+      </div>
+
+      <button id="btn-audio-toggle" class="tv-btn tv-btn-secondary" title="Toggle Sound Alert on High Probability Events">
+        <svg id="audio-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        <span id="audio-label">Alert: OFF</span>
+      </button>
+
+      <button id="btn-methodology" class="tv-btn tv-btn-secondary" data-i18n-title="btnMethodology">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+        <span data-i18n="btnMethodology">Methodology & Specs</span>
+      </button>
+
+      <button id="btn-refresh" class="tv-btn tv-btn-primary">
+        <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        <span data-i18n="btnRefresh">Scan Market</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Terminal Layout -->
+  <main class="terminal-body">
+    <!-- Snapshot Metrics Bar -->
+    <section class="metrics-bar" id="stats-overview">
+      <div class="metric-box">
+        <div class="metric-title" data-i18n="statMonitored">Monitored Pairs</div>
+        <div class="metric-number" id="stat-scanned-count">--</div>
+        <div class="metric-desc" data-i18n="statMonitoredSub">Active MEXC Altcoins ($20k-$2.5M Vol)</div>
+      </div>
+      <div class="metric-box alert-box">
+        <div class="metric-title" data-i18n="statHighAlert">High Squeeze / Break Alert</div>
+        <div class="metric-number color-red" id="stat-high-risk-count">--</div>
+        <div class="metric-desc" data-i18n="statHighAlertSub">Probability > 75% | Vulnerable Levels</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title" data-i18n="statMinTrigger">Lowest Trigger Capital</div>
+        <div class="metric-number color-yellow" id="stat-min-trigger-cost">--</div>
+        <div class="metric-desc" id="stat-min-trigger-symbol" data-i18n="statMinTriggerSub">Cost to pierce key support/resistance</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-title" data-i18n="statImbalance">Avg Book Imbalance</div>
+        <div class="metric-number" id="stat-avg-imbalance">--</div>
+        <div class="metric-desc" data-i18n="statImbalanceSub">Bid vs Ask Volume (±3% Depth)</div>
+      </div>
+    </section>
+
+    <!-- TradingView Style Screener Tabs -->
+    <div class="tv-tabs-bar">
+      <button id="tab-mode-all" class="tv-tab active">
+        <span class="tab-label" data-i18n="tabAll">All Opportunities</span>
+        <span class="tab-sublabel" data-i18n="tabAllDesc">Unified ranking of top structural orderbook anomalies</span>
+      </button>
+      <button id="tab-mode-avalanche" class="tv-tab tab-red">
+        <span class="tab-label" data-i18n="tabAvalanche">Long Liquidation Cascades</span>
+        <span class="tab-sublabel" data-i18n="tabAvalancheDesc">Fragile bid books prone to dump through support</span>
+      </button>
+      <button id="tab-mode-squeeze" class="tv-tab tab-green">
+        <span class="tab-label" data-i18n="tabSqueeze">Short Squeeze Breakouts</span>
+        <span class="tab-sublabel" data-i18n="tabSqueezeDesc">Thin ask books vulnerable to explosive pump</span>
+      </button>
+    </div>
+
+    <!-- Terminal Controls Bar -->
+    <section class="terminal-toolbar">
+      <div class="toolbar-search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="input-search" data-i18n-placeholder="searchPlaceholder" placeholder="Search symbol (e.g. PEPE, SOL, KAVA)..." autocomplete="off">
+      </div>
+
+      <div class="toolbar-filters" id="filter-group-container">
+        <span class="filter-prefix" data-i18n="sortLabel">Sort:</span>
+        <button class="tv-pill active" data-sort="opportunity_prob" data-i18n="sortProb">Probability</button>
+        <button class="tv-pill" data-sort="opportunity_impact" data-i18n="sortImpact">Impact Multiplier</button>
+        <button class="tv-pill" data-sort="opportunity_cost" data-i18n="sortCost">Trigger Cost (Low)</button>
+        <button class="tv-pill" data-sort="opportunity_distance" data-i18n="sortDistance">Distance to Line</button>
+        <button class="tv-pill" data-sort="volume_24h_usdt" data-i18n="sortVolume">24h Volume</button>
+      </div>
+
+      <div class="toolbar-actions" style="display: flex; align-items: center; gap: 8px;">
+        <button id="btn-open-settings" class="tv-btn tv-btn-secondary" style="height: 32px; border-color: var(--tv-border);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          <span data-i18n="btnSettings">Filters & Alerts</span>
+          <span id="active-filter-badge" style="display: none; background: var(--tv-blue); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px;">0</span>
+        </button>
+
+        <div class="view-switchers">
+          <button id="view-mode-table" class="view-toggle-btn active" data-i18n-title="viewTable" title="Screener Table">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+          <button id="view-mode-card" class="view-toggle-btn" data-i18n-title="viewCards" title="Grid View">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Terminal Loading Spinner -->
+    <div id="loading-state" class="terminal-loader">
+      <div class="tv-spinner"></div>
+      <div class="loader-title" data-i18n="loadingTitle">Analyzing MEXC Orderbooks...</div>
+      <div class="loader-sub" data-i18n="loadingDesc">Calculating cumulative depth and swing levels across pairs</div>
+    </div>
+
+    <!-- Screener Table View (Default Pro View) -->
+    <div id="table-container" class="screener-table-wrapper">
+      <table class="tv-screener-table">
+        <thead>
+          <tr>
+            <th data-i18n="symbol">Symbol</th>
+            <th>Type</th>
+            <th data-i18n="price">Price</th>
+            <th data-i18n="change24h">24h Change</th>
+            <th data-i18n="targetPrice">Trigger Level</th>
+            <th data-i18n="distance">Distance</th>
+            <th>Trigger Capital (USDT)</th>
+            <th data-i18n="probScore">Probability</th>
+            <th data-i18n="impactScore">Impact</th>
+            <th data-i18n="action">Action</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Cards Grid View -->
+    <div id="cards-container" class="cards-grid hidden"></div>
+  </main>
+
+  <!-- Methodology & Specs Modal -->
+  <div id="methodology-modal" class="tv-modal-backdrop hidden">
+    <div class="tv-modal-window">
+      <div class="tv-modal-header">
+        <div class="modal-head-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <span data-i18n="modalTitle">Methodology & Calculation Specifications</span>
+        </div>
+        <button id="modal-close-btn" class="tv-modal-close">&times;</button>
+      </div>
+      <div class="tv-modal-content">
+        <div class="spec-section">
+          <h4 data-i18n="sec1Title">1. Stop Loss Cluster Zone (P_stop)</h4>
+          <p data-i18n="sec1Text">Retail stops cluster tightly beneath recent key 24h swing support/resistance levels. The system identifies these levels dynamically:</p>
+          <div class="tv-code-box">
+            $$P_{stop\_long} = \text{SwingLow}_{24h} \times (1 - 0.005)$$
+            $$P_{stop\_short} = \text{SwingHigh}_{24h} \times (1 + 0.005)$$
+          </div>
+        </div>
+
+        <div class="spec-section">
+          <h4 data-i18n="sec2Title">2. Cumulative Depth Trigger Cost (USDT)</h4>
+          <p data-i18n="sec2Text">The system computes the exact cumulative capital needed to exhaust all resting limit orders up to the cluster zone:</p>
+          <div class="tv-code-box">
+            $$\text{Trigger Cost (USDT)} = \sum_{P_{bid} \ge P_{stop}} (P_{bid} \times Q_{bid})$$
+          </div>
+        </div>
+
+        <div class="spec-section">
+          <h4 data-i18n="sec3Title">3. Dual-Score Evaluation Model</h4>
+          <p style="white-space: pre-line;" data-i18n="sec3Text">
+            • Probability Score (0-99): Derived from proximity to line, low trigger capital, and orderbook imbalance.
+            • Impact Multiplier (0-99): Evaluates liquidity trap severity by comparing 24h turnover against the thin wall.
+          </p>
+        </div>
+
+        <div class="spec-section tv-disclaimer">
+          <h4 data-i18n="sec4Title">Disclaimer & Risk Warning</h4>
+          <p data-i18n="sec4Text">All metrics are computed objectively from public MEXC orderbook data. This terminal does not provide financial advice, trading signals, or solicitation. Crypto trading entails high risk.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters & Alerts Customization Modal -->
+  <div id="settings-modal" class="tv-modal-backdrop hidden">
+    <div class="tv-modal-window tv-settings-window">
+      <div class="tv-modal-header">
+        <div class="modal-head-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line>
+            <line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line>
+            <line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>
+          </svg>
+          <span data-i18n="settingsTitle">Screener & Alert Threshold Settings</span>
+        </div>
+        <button id="settings-modal-close" class="tv-modal-close">&times;</button>
+      </div>
+      <div class="tv-modal-content">
+        <!-- Group 1: Screener Display Criteria -->
+        <div class="settings-group">
+          <h4 class="settings-group-title" data-i18n="secFilterDisplay">Screener Display Criteria</h4>
+          
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-min-prob" data-i18n="lblMinProb">Minimum Probability Score (0 - 99)</label>
+              <span class="settings-sub">Exclude pairs below this breakout likelihood</span>
+            </div>
+            <div class="settings-input-col">
+              <input type="range" id="cfg-min-prob" min="0" max="95" step="5" value="0" class="tv-range">
+              <span class="range-display" id="disp-min-prob">≥ 0%</span>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-min-impact" data-i18n="lblMinImpact">Minimum Impact Multiplier (0 - 99)</label>
+              <span class="settings-sub">Filter for explosive liquidity void severity</span>
+            </div>
+            <div class="settings-input-col">
+              <input type="range" id="cfg-min-impact" min="0" max="95" step="5" value="0" class="tv-range">
+              <span class="range-display" id="disp-min-impact">≥ 0</span>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-max-cost" data-i18n="lblMaxCost">Maximum Trigger Capital (USDT)</label>
+              <span class="settings-sub">Upper limit of capital required to pierce orderbook</span>
+            </div>
+            <div class="settings-input-col">
+              <select id="cfg-max-cost" class="tv-select">
+                <option value="999999999">No Limit (All)</option>
+                <option value="1000">≤ $1,000</option>
+                <option value="2500">≤ $2,500</option>
+                <option value="5000">≤ $5,000</option>
+                <option value="10000">≤ $10,000</option>
+                <option value="25000">≤ $25,000</option>
+                <option value="50000">≤ $50,000</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-min-vol" data-i18n="lblMinVol">Minimum 24h Volume (USDT)</label>
+              <span class="settings-sub">Ensure sufficient market trading activity</span>
+            </div>
+            <div class="settings-input-col">
+              <select id="cfg-min-vol" class="tv-select">
+                <option value="0">No Minimum ($0)</option>
+                <option value="50000">≥ $50,000</option>
+                <option value="100000">≥ $100,000</option>
+                <option value="250000">≥ $250,000</option>
+                <option value="500000">≥ $500,000</option>
+                <option value="1000000">≥ $1,000,000</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-max-distance" data-i18n="lblMaxDistance">Maximum Distance to Barrier (%)</label>
+              <span class="settings-sub">Maximum distance between current price and stop cluster</span>
+            </div>
+            <div class="settings-input-col">
+              <input type="range" id="cfg-max-distance" min="0.5" max="10.0" step="0.5" value="10.0" class="tv-range">
+              <span class="range-display" id="disp-max-distance">≤ 10.0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 2: Audio Alert Criteria -->
+        <div class="settings-group">
+          <h4 class="settings-group-title" data-i18n="secFilterAlert">Sound Alert Trigger Criteria</h4>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-alert-min-prob" data-i18n="lblAlertMinProb">Audio Alert: Min Probability Score</label>
+              <span class="settings-sub">Trigger audio chime only when opportunity probability exceeds</span>
+            </div>
+            <div class="settings-input-col">
+              <input type="range" id="cfg-alert-min-prob" min="50" max="95" step="5" value="70" class="tv-range">
+              <span class="range-display" id="disp-alert-min-prob">≥ 70%</span>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div class="settings-label-col">
+              <label for="cfg-alert-max-cost" data-i18n="lblAlertMaxCost">Audio Alert: Max Trigger Capital ($USDT)</label>
+              <span class="settings-sub">Only chime if required breakthrough capital is below</span>
+            </div>
+            <div class="settings-input-col">
+              <select id="cfg-alert-max-cost" class="tv-select">
+                <option value="1000">≤ $1,000</option>
+                <option value="2500">≤ $2,500</option>
+                <option value="5000" selected>≤ $5,000</option>
+                <option value="10000">≤ $10,000</option>
+                <option value="25000">≤ $25,000</option>
+                <option value="999999999">No Limit</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="settings-footer">
+          <button id="btn-reset-settings" class="tv-btn tv-btn-secondary" data-i18n="btnReset">Reset Defaults</button>
+          <button id="btn-apply-settings" class="tv-btn tv-btn-primary" data-i18n="btnApply">Apply & Save Filters</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,455 @@
+import asyncio
+from contextlib import asynccontextmanager
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response, FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from mexc_client import MexcClient
+from analyzer import LiquidityAnalyzer
+
+logger = logging.getLogger("mexc_radar")
+logging.basicConfig(level=logging.INFO)
+
+# メガキャップ（大手主導通貨）および既知ステーブルコイン・合成資産の完全除外リスト
+EXCLUDED_SYMBOLS = {
+    "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT",
+    "ADAUSDT", "AVAXUSDT", "LINKUSDT", "SUIUSDT", "TONUSDT", "SHIBUSDT",
+    "TRXUSDT", "DOTUSDT", "LTCUSDT", "NEARUSDT", "BCHUSDT", "UNIUSDT",
+    "APTUSDT", "XLMUSDT", "USDCUSDT", "FDUSDUSDT", "TUSDUSDT", "USDDUSDT",
+    "EURUSDT", "DAIUSDT", "WBTCUSDT", "WETHUSDT", "PYUSDUSDT", "USDVUSDT",
+    "FRAXUSDT", "LUSDUSDT", "CRVUSDUSDT", "GUSDUSDT", "CUSDUSDT", "XAUTUSDT",
+    "PAXGUSDT", "EURSUSDT", "EURTUSDT", "USDEUSDT", "ENAUSDT", "BUSDUSDT",
+    "XUSDUSDT", "LEEUSDT", "COPUSDT", "MXNUSDT", "BRLUSDT", "TRYUSDT",
+    "USDJUSDT", "USDXUSDT", "USDFUSDT", "MUSDUSDT", "CUSDUSDT", "DJEDUSDT"
+}
+
+# 法定通貨・ステーブルコインキーワード（シンボルに含まれる場合に除外）
+FIAT_STABLE_KEYWORDS = ["USD", "EUR", "GBP", "JPY", "BRL", "TRY", "AUD", "CAD", "CHF"]
+
+
+client = MexcClient()
+
+# グローバルメモリ状態（ローテーションワーカーが継続更新）
+GLOBAL_STATE: Dict[str, Any] = {
+    "items_map": {},      # symbol -> analysis dict
+    "target_pool": [],    # 現在の巡回対象リスト
+    "last_ticker_sync": 0.0,
+    "last_batch_sync": 0.0,
+    "is_running": True,
+}
+
+# 巡回設定（MEXC APIレート制限遵守: 最大16 req/sec未満の安全巡回）
+BATCH_SIZE = 8            # 1バッチあたりの並行取得数
+BATCH_SLEEP_SECONDS = 0.5 # バッチ間のウェイト（レート制限20req/secを絶対に踏まない安全設計）
+
+async def analyze_single_symbol(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    symbol = item.get("symbol", "")
+    try:
+        current_price = float(item.get("lastPrice", 0.0))
+        volume_24h = float(item.get("quoteVolume", 0.0))
+        price_change_pct = float(item.get("priceChangePercent", 0.0)) * 100.0
+        swing_high = float(item.get("highPrice", 0.0))
+        swing_low = float(item.get("lowPrice", 0.0))
+
+        if current_price <= 0:
+            return None
+
+        # ローソク足API通信を丸ごとスキップし、板情報（Depth）の1通信のみに集約
+        depth = await client.get_order_book(symbol, limit=70)
+
+        return LiquidityAnalyzer.analyze_symbol(
+            symbol=symbol,
+            current_price=current_price,
+            volume_24h_usdt=volume_24h,
+            price_change_24h_pct=price_change_pct,
+            depth=depth,
+            swing_low=swing_low,
+            swing_high=swing_high,
+        )
+    except Exception as e:
+        # 429 Too Many Requests検知時は自動バックオフ
+        if "429" in str(e):
+            await asyncio.sleep(2.0)
+        logger.debug(f"Failed analyzing {symbol}: {e}")
+        return None
+
+async def update_target_pool():
+    """MEXCから新興草コイン・アルトコインの条件を満たす【全銘柄】をプールに登録"""
+    try:
+        tickers = await client.get_24hr_tickers()
+        filtered = []
+        for t in tickers:
+            symbol = t.get("symbol", "")
+            if symbol in EXCLUDED_SYMBOLS:
+                continue
+
+            # レバレッジトークン（3L, 3S, 5L, 5S等）を除外
+            base_asset = symbol[:-4] if symbol.endswith("USDT") else symbol
+            if any(base_asset.endswith(lev) for lev in ["3L", "3S", "4L", "4S", "5L", "5S"]):
+                continue
+
+            try:
+                vol = float(t.get("quoteVolume", 0.0))
+                last = float(t.get("lastPrice", 0.0))
+                high = float(t.get("highPrice", 0.0))
+                low = float(t.get("lowPrice", 0.0))
+
+                if last <= 0:
+                    continue
+
+                # 1. ステーブルコイン・動かないバーコードチャートの徹底排除
+                # $1付近（0.96〜1.04）はドルペグ通貨/ステーブルのため無条件で排除
+                if 0.96 <= last <= 1.04:
+                    continue
+
+                # ベース名にUSDやEURなどの法定通貨コードが含まれ、価格が0.8〜1.2の範囲にあるものも排除
+                if any(kw in base_asset for kw in FIAT_STABLE_KEYWORDS) and (0.8 <= last <= 1.25):
+                    continue
+
+                # 24Hの値幅が3.5%未満（動かないバーコードチャート通貨）を排除
+                price_range_pct = (high - low) / last
+                if price_range_pct < 0.035:
+                    continue
+
+                # 2. 出来高2万〜250万USDT（過疎すぎず、メジャーすぎない草コイン全対象）
+                if 20000.0 <= vol <= 2500000.0:
+                    filtered.append(t)
+            except (ValueError, TypeError):
+                continue
+
+        # 条件を満たす全銘柄をそのまま監視プールに設定（上限なし）
+        GLOBAL_STATE["target_pool"] = filtered
+        GLOBAL_STATE["last_ticker_sync"] = time.time()
+        logger.info(f"Updated monitoring pool to ALL eligible symbols: {len(GLOBAL_STATE['target_pool'])} symbols")
+    except Exception as e:
+        logger.error(f"Failed updating target pool: {e}")
+
+
+
+
+
+async def background_rotation_worker():
+    """
+    バックグラウンドで120銘柄を8銘柄ずつ安全なペースで巡回し続けるワーカー
+    APIレートリミットを絶対に踏まず、ユーザーのリクエストには即時0msでキャッシュ応答する
+    """
+    logger.info("Background rotation worker started.")
+    await update_target_pool()
+
+    while GLOBAL_STATE["is_running"]:
+        pool = list(GLOBAL_STATE["target_pool"])
+        if not pool:
+            await asyncio.sleep(3.0)
+            await update_target_pool()
+            continue
+
+        # 8銘柄ずつチャンク分割してローテーション
+        for i in range(0, len(pool), BATCH_SIZE):
+            if not GLOBAL_STATE["is_running"]:
+                break
+            batch = pool[i : i + BATCH_SIZE]
+            tasks = [analyze_single_symbol(item) for item in batch]
+            results = await asyncio.gather(*tasks)
+
+            for res in results:
+                if res:
+                    GLOBAL_STATE["items_map"][res["symbol"]] = res
+
+            GLOBAL_STATE["last_batch_sync"] = time.time()
+            await asyncio.sleep(BATCH_SLEEP_SECONDS)
+
+        # 1周巡回したら、5分おきにティッカー全体の最新ランキングを再同期
+        if time.time() - GLOBAL_STATE["last_ticker_sync"] > 300.0:
+            await update_target_pool()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 起動時
+    worker_task = asyncio.create_task(background_rotation_worker())
+    yield
+    # 終了時
+    GLOBAL_STATE["is_running"] = False
+    worker_task.cancel()
+
+
+app = FastAPI(
+    title="MEXC Liquidity & Avalanche Radar",
+    description="MEXC現物アルトコインの板不均衡・損切り雪崩＆踏み上げリアルタイム監視システム",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/api/scan")
+async def scan_market(
+    mode: str = Query("all", description="'all'(総合ミックス), 'avalanche'(下落雪崩のみ), 'squeeze'(上昇踏み上げのみ)"),
+) -> Dict[str, Any]:
+    """
+    バックグラウンド巡回ワーカーが集計した最新データを即時返却（待ち時間0ms）
+    両方向（下落雪崩 ＆ 上昇踏み上げ）を統合したランキングをデフォルト提供
+    """
+    raw_items = list(GLOBAL_STATE["items_map"].values())
+
+    # 初回起動直後でまだデータが少ない場合は、初期バッチを同期取得
+    if len(raw_items) < 10 and GLOBAL_STATE["target_pool"]:
+        first_batch = GLOBAL_STATE["target_pool"][:15]
+        tasks = [analyze_single_symbol(item) for item in first_batch]
+        initial_results = await asyncio.gather(*tasks)
+        for res in initial_results:
+            if res:
+                GLOBAL_STATE["items_map"][res["symbol"]] = res
+        raw_items = list(GLOBAL_STATE["items_map"].values())
+
+    processed_items = []
+    for item in raw_items:
+        r_prob = item.get("avalanche_prob_score", 5.0)
+        s_prob = item.get("squeeze_prob_score", 5.0)
+        r_impact = item.get("avalanche_impact_score", 5.0)
+        s_impact = item.get("squeeze_impact_score", 5.0)
+        r_cost = item.get("avalanche_trigger_cost_usdt", 0.0)
+        s_cost = item.get("squeeze_trigger_cost_usdt", 0.0)
+
+        # どちらの方向により大きなチャンス/歪みがあるかを判定（発生確率ベース）
+        if r_prob >= s_prob:
+            opp_side = "avalanche"
+            opp_prob = r_prob
+            opp_impact = r_impact
+            opp_cost = r_cost
+            opp_dist = item.get("distance_to_stop_pct", 0.0)
+            opp_target = item.get("stop_loss_price", 0.0)
+            opp_vol_ratio = item.get("vol_ratio_down", 1.0)
+        else:
+            opp_side = "squeeze"
+            opp_prob = s_prob
+            opp_impact = s_impact
+            opp_cost = s_cost
+            opp_dist = item.get("distance_to_high_pct", 0.0)
+            opp_target = item.get("squeeze_target_price", 0.0)
+            opp_vol_ratio = item.get("vol_ratio_up", 1.0)
+
+        enriched = dict(item)
+        enriched["opportunity_side"] = opp_side
+        enriched["opportunity_prob"] = opp_prob
+        enriched["opportunity_impact"] = opp_impact
+        enriched["opportunity_score"] = opp_prob # 互換性
+        enriched["opportunity_cost"] = opp_cost
+        enriched["opportunity_distance"] = opp_dist
+        enriched["opportunity_target"] = opp_target
+        enriched["opportunity_vol_ratio"] = opp_vol_ratio
+        processed_items.append(enriched)
+
+    # モードによる絞り込み
+    if mode == "avalanche":
+        items = [x for x in processed_items if x["opportunity_side"] == "avalanche"]
+        items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
+    elif mode == "squeeze":
+        items = [x for x in processed_items if x["opportunity_side"] == "squeeze"]
+        items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
+    else:  # 'all' (デフォルト)
+        items = processed_items
+        items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
+
+    return {
+        "count": len(items),
+        "total_monitored": len(GLOBAL_STATE["target_pool"]),
+        "updated_at": GLOBAL_STATE["last_batch_sync"] or time.time(),
+        "mode": mode,
+        "items": items,
+    }
+
+
+# =========================================================================
+# SEO & SSR Endpoints (クローラー・検索エンジン最適化 & パーマリンク)
+# =========================================================================
+
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt(request: Request):
+    """Google等のクローラー巡回を歓迎し、動的sitemap.xmlへ誘導"""
+    host = request.headers.get("host", "localhost:8000")
+    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
+    return f"User-agent: *\nAllow: /\n\nSitemap: {scheme}://{host}/sitemap.xml\n"
+
+
+@app.get("/sitemap.xml")
+async def sitemap_xml(request: Request):
+    """全監視銘柄（約700〜1,000件）の個別URLを動的生成したXMLサイトマップ"""
+    host = request.headers.get("host", "localhost:8000")
+    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
+    base_url = f"{scheme}://{host}"
+
+    symbols = [t.get("symbol") for t in GLOBAL_STATE["target_pool"] if t.get("symbol")]
+    # キャッシュ済みのシンボルも補完
+    symbols = sorted(list(set(symbols + list(GLOBAL_STATE["items_map"].keys()))))
+
+    urls = [
+        f"  <url>\n    <loc>{base_url}/</loc>\n    <changefreq>always</changefreq>\n    <priority>1.0</priority>\n  </url>",
+        f"  <url>\n    <loc>{base_url}/methodology</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>",
+        f"  <url>\n    <loc>{base_url}/screener/under-1000-trigger</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.9</priority>\n  </url>",
+        f"  <url>\n    <loc>{base_url}/screener/high-squeeze-alert</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.9</priority>\n  </url>",
+        f"  <url>\n    <loc>{base_url}/screener/long-liquidation-cascade</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.9</priority>\n  </url>",
+    ]
+
+    for sym in symbols:
+        urls.append(
+            f"  <url>\n    <loc>{base_url}/pair/{sym}</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.7</priority>\n  </url>"
+        )
+
+    xml_content = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(urls)
+        + "\n</urlset>"
+    )
+    return Response(content=xml_content, media_type="application/xml")
+
+
+@app.get("/screener/{category}", response_class=HTMLResponse)
+async def screener_category_page(category: str):
+    """特化型ロングテール検索（例: under-1000-trigger, high-squeeze）のSEO受け皿"""
+    index_path = frontend_dir / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    raise HTTPException(status_code=404, detail="Screener page not found")
+
+
+@app.get("/methodology", response_class=HTMLResponse)
+async def methodology_page():
+    """学術・技術検索クエリに対応する独立した仕様・数式定義ページ"""
+    method_path = frontend_dir / "methodology.html"
+    if method_path.exists():
+        return FileResponse(method_path)
+    raise HTTPException(status_code=404, detail="Methodology page not found")
+
+
+@app.get("/pair/{symbol}", response_class=HTMLResponse)
+async def pair_detail_page(symbol: str, request: Request):
+    """
+    個別銘柄のSSRパーマリンク（Server-Side Rendered HTML）
+    クローラーがJSを実行しなくても最新の板情報・損切りコスト・Schema.org構造化データを即座にインデックス可能
+    """
+    sym_clean = symbol.strip().upper()
+    item = GLOBAL_STATE["items_map"].get(sym_clean)
+
+    # メモリに未解析の場合、対象プールから見つけてオンデマンド即時解析
+    if not item:
+        target_ticker = next((t for t in GLOBAL_STATE["target_pool"] if t.get("symbol") == sym_clean), None)
+        if target_ticker:
+            item = await analyze_single_symbol(target_ticker)
+            if item:
+                GLOBAL_STATE["items_map"][sym_clean] = item
+
+    if not item:
+        # 見つからない場合でもティッカーを1件取得試行
+        try:
+            tickers = await client.get_24hr_tickers()
+            t = next((x for x in tickers if x.get("symbol") == sym_clean), None)
+            if t:
+                item = await analyze_single_symbol(t)
+                if item:
+                    GLOBAL_STATE["items_map"][sym_clean] = item
+        except Exception:
+            pass
+
+    if not item:
+        raise HTTPException(status_code=404, detail=f"Pair {sym_clean} not found or not eligible")
+
+    # テンプレート読み込み
+    pair_tmpl_path = frontend_dir / "pair.html"
+    if not pair_tmpl_path.exists():
+        raise HTTPException(status_code=500, detail="Pair template missing")
+
+    template_html = pair_tmpl_path.read_text(encoding="utf-8")
+
+    # パラメータ整形
+    current_price = item.get("current_price", 0.0)
+    change_pct = item.get("price_change_24h_pct", 0.0)
+    r_prob = item.get("avalanche_prob_score", 5.0)
+    s_prob = item.get("squeeze_prob_score", 5.0)
+
+    is_squeeze = s_prob > r_prob
+    prob_score = s_prob if is_squeeze else r_prob
+    impact_score = item.get("squeeze_impact_score" if is_squeeze else "avalanche_impact_score", 5.0)
+    trigger_cost = item.get("squeeze_trigger_cost_usdt" if is_squeeze else "avalanche_trigger_cost_usdt", 0.0)
+    distance = item.get("distance_to_high_pct" if is_squeeze else "distance_to_stop_pct", 0.0)
+    target_price = item.get("squeeze_target_price" if is_squeeze else "stop_loss_price", 0.0)
+
+    opp_type_text = "SHORT SQUEEZE BREAKOUT" if is_squeeze else "LONG LIQUIDATION CASCADE"
+    opp_tag_class = "tag-short" if is_squeeze else "tag-long"
+    cost_panel_class = "panel-up" if is_squeeze else "panel-down"
+    cost_title = "⚡ Capital to Pierce Resistance" if is_squeeze else "💥 Capital to Break Support"
+    dist_sign = "+" if is_squeeze else "-"
+    change_sign = "+" if change_pct >= 0 else ""
+    change_color = "var(--tv-green)" if change_pct >= 0 else "var(--tv-red)"
+
+    desc_action = (
+        f"Only ${trigger_cost:,.2f} USDT of aggressive market buying is needed to pierce key resistance at ${target_price:,.6f}, triggering short liquidations."
+        if is_squeeze
+        else f"Only ${trigger_cost:,.2f} USDT of aggressive market selling is needed to pierce key support at ${target_price:,.6f}, triggering long stop loss cascades."
+    )
+
+    meta_title = f"{sym_clean} Liquidity Depth & {opp_type_text} Radar | MEXC Terminal"
+    meta_desc = f"{sym_clean} orderbook analysis: Current price ${current_price}. {desc_action} Probability Score: {prob_score}/99, Impact: {impact_score}/99."
+
+    host = request.headers.get("host", "localhost:8000")
+    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
+    canonical_url = f"{scheme}://{host}/pair/{sym_clean}"
+
+    # 置換マッピング
+    replacements = {
+        "{{TITLE}}": meta_title,
+        "{{DESCRIPTION}}": meta_desc,
+        "{{CANONICAL_URL}}": canonical_url,
+        "{{SYMBOL}}": sym_clean,
+        "{{PRICE}}": f"{current_price:,.6f}" if current_price < 1 else f"{current_price:,.4f}",
+        "{{CHANGE_PCT}}": f"{abs(change_pct):.2f}",
+        "{{CHANGE_SIGN}}": change_sign,
+        "{{CHANGE_COLOR}}": change_color,
+        "{{OPP_TYPE_TEXT}}": opp_type_text,
+        "{{OPP_TAG_CLASS}}": opp_tag_class,
+        "{{COST_PANEL_CLASS}}": cost_panel_class,
+        "{{COST_TITLE}}": cost_title,
+        "{{DIST_SIGN}}": dist_sign,
+        "{{DISTANCE}}": f"{distance:.2f}",
+        "{{TRIGGER_COST}}": f"{trigger_cost:,.2f}",
+        "{{TRIGGER_DESC}}": desc_action,
+        "{{TARGET_PRICE}}": f"{target_price:,.6f}" if target_price < 1 else f"{target_price:,.4f}",
+        "{{HIGH_PRICE}}": f"{item.get('swing_high', 0.0):,.4f}",
+        "{{LOW_PRICE}}": f"{item.get('swing_low', 0.0):,.4f}",
+        "{{VOLUME_24H}}": f"{item.get('volume_24h_usdt', 0.0):,.2f}",
+        "{{BID_RATIO}}": f"{item.get('bid_ratio_pct', 50.0):.1f}",
+        "{{ASK_RATIO}}": f"{item.get('ask_ratio_pct', 50.0):.1f}",
+        "{{PROB_SCORE}}": f"{prob_score}",
+        "{{IMPACT_SCORE}}": f"{impact_score}",
+        "{{IMPACT_EXTRA_CLASS}}": "high" if impact_score >= 75 else "",
+        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://www.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}"),
+    }
+
+    rendered_html = template_html
+    for placeholder, val in replacements.items():
+        rendered_html = rendered_html.replace(placeholder, str(val))
+
+    return HTMLResponse(content=rendered_html)
+
+
+# フロントエンド静的ファイルのホスティング
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+

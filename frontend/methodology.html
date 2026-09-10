@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Methodology & Calculation Formulas | MEXC Liquidity Terminal</title>
+  <meta name="description" content="Detailed mathematical formulas and technical specifications for orderbook imbalance, liquidation trigger cost, and breakout probability algorithms on MEXC spot markets.">
+  <link rel="canonical" href="/methodology">
+
+  <!-- Schema.org JSON-LD TechArticle -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "headline": "Cryptocurrency Orderbook Depth & Liquidation Cascade Methodology",
+    "description": "Mathematical formulation and quantitative algorithms for calculating cumulative depth trigger costs and structural orderbook imbalance.",
+    "author": {
+      "@type": "Organization",
+      "name": "MEXC Liquidity Terminal"
+    },
+    "inLanguage": "en"
+  }
+  </script>
+
+  <!-- Pro Finance Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .method-container {
+      max-width: 860px;
+      margin: 32px auto 80px;
+      padding: 0 20px;
+    }
+    .method-header {
+      margin-bottom: 28px;
+    }
+    .method-header h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--tv-text-bright);
+      margin-bottom: 8px;
+    }
+    .method-header p {
+      color: var(--tv-text-secondary);
+      font-size: 13px;
+    }
+    .method-card {
+      background-color: var(--tv-bg-surface);
+      border: 1px solid var(--tv-border);
+      border-radius: var(--radius-sm);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .method-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--tv-blue);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .method-card p {
+      font-size: 13px;
+      color: var(--tv-text-primary);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .method-card ul {
+      margin-left: 20px;
+      margin-bottom: 12px;
+      color: var(--tv-text-primary);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .back-nav {
+      margin-bottom: 20px;
+    }
+    .back-nav a {
+      color: var(--tv-blue);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .back-nav a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body class="tv-theme">
+  <!-- Top Financial Navigation Bar -->
+  <header class="tv-navbar">
+    <div class="nav-left">
+      <a href="/" class="brand-logo" style="text-decoration: none;">
+        <svg class="brand-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 3v18h18"/>
+          <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+        </svg>
+        <span class="brand-name">MEXC Liquidity Terminal</span>
+      </a>
+      <div class="brand-tag">Methodology & Technical Specifications</div>
+    </div>
+    <div class="nav-right">
+      <a href="/" class="tv-btn tv-btn-primary" style="text-decoration: none;">Launch Screener ↗</a>
+    </div>
+  </header>
+
+  <div class="method-container">
+    <div class="back-nav">
+      <a href="/">← Return to Live Market Screener</a>
+    </div>
+
+    <div class="method-header">
+      <h1>Quantitative Methodology & Algorithmic Specs</h1>
+      <p>Scientific documentation of cumulative orderbook depth, liquidation cascades, and imbalance formulas.</p>
+    </div>
+
+    <article class="method-card">
+      <h2>1. Stop Loss Cluster Zone ($P_{stop}$) Definition</h2>
+      <p>
+        In cryptocurrency retail markets, stop loss orders are systematically clustered just beneath key 24-hour swing lows (for long positions) and above key swing highs (for short positions). 
+      </p>
+      <p>The algorithm defines the cluster thresholds as follows:</p>
+      <div class="tv-code-box">
+        $$P_{stop\_long} = \text{SwingLow}_{24h} \times (1 - 0.005)$$
+        $$P_{stop\_short} = \text{SwingHigh}_{24h} \times (1 + 0.005)$$
+      </div>
+      <p>
+        A -0.5% margin below the low (or +0.5% above the high) is applied to capture the exact cluster zone where cascade liquidations trigger.
+      </p>
+    </article>
+
+    <article class="method-card">
+      <h2>2. Cumulative Depth Trigger Cost (USDT)</h2>
+      <p>
+        Rather than relying on superficial top-of-book quotes, the terminal computes the exact cumulative net capital required to consume all resting limit orders up to the cluster zone.
+      </p>
+      <div class="tv-code-box">
+        $$\text{Trigger Cost (Long Cascade)} = \sum_{P_{bid} \ge P_{stop\_long}} (P_{bid} \times Q_{bid})$$
+        $$\text{Trigger Cost (Short Squeeze)} = \sum_{P_{ask} \le P_{stop\_short}} (P_{ask} \times Q_{ask})$$
+      </div>
+      <p>
+        This metric reveals the true market depth: exactly how many USDT of aggressive market selling (or buying) would blow through support (or resistance) and initiate a liquidation domino effect.
+      </p>
+    </article>
+
+    <article class="method-card">
+      <h2>3. Orderbook Imbalance Index ($\pm 3\%$)</h2>
+      <p>
+        Evaluates the supply-demand asymmetry within a tight $\pm 3\%$ price corridor from the mid-market price:
+      </p>
+      <div class="tv-code-box">
+        $$\text{Bid Ratio} = \frac{\sum_{P_{bid} \ge 0.97 \times P} (P_{bid} \times Q_{bid})}{\text{Total Volume}_{\pm 3\%}} \times 100\%$$
+      </div>
+      <p>
+        When the Bid Ratio drops below 20%, the asset exhibits acute structural sell-side vulnerability.
+      </p>
+    </article>
+
+    <article class="method-card">
+      <h2>4. Dual-Score Algorithmic Evaluation</h2>
+      <ul>
+        <li>
+          <strong>🎯 Breakout Probability (0 - 99):</strong> Quantifies the likelihood of hitting the cluster line. Higher scores indicate tighter distance to the barrier (&lt; 3%), low cumulative trigger cost (&lt; $10,000), and severe orderbook imbalance.
+        </li>
+        <li>
+          <strong>💣 Impact Multiplier (0 - 99):</strong> Quantifies the post-break volatility potential (liquidity trap severity). It compares 24h trading volume against the fragile orderbook wall. An asset trading $500k/day backed by only $3k of orderbook depth will experience a violent reaction upon breach.
+        </li>
+      </ul>
+    </article>
+
+    <article class="method-card tv-disclaimer">
+      <h2 style="color: var(--tv-yellow);">⚠️ Regulatory Disclaimer & Academic Intent</h2>
+      <p>
+        This terminal and its published documentation are provided solely for quantitative research, data analytics, and educational visualization of financial orderbook mechanics. No information provided constitutes investment advice, trading signals, financial recommendations, or solicitation. Trading cryptocurrencies carries substantial financial risk.
+      </p>
+    </article>
+  </div>
+</body>
+</html>
