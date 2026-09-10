@@ -33,6 +33,7 @@ EXCLUDED_SYMBOLS = {
 # 法定通貨・ステーブルコインキーワード（シンボルに含まれる場合に除外）
 FIAT_STABLE_KEYWORDS = ["USD", "EUR", "GBP", "JPY", "BRL", "TRY", "AUD", "CAD", "CHF"]
 
+MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "mexc-radar")
 
 client = MexcClient()
 
@@ -468,7 +469,7 @@ async def pair_detail_page(symbol: str, request: Request):
         "{{PROB_SCORE}}": f"{prob_score}",
         "{{IMPACT_SCORE}}": f"{impact_score}",
         "{{IMPACT_EXTRA_CLASS}}": "high" if impact_score >= 75 else "",
-        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://www.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}"),
+        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://www.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"),
     }
 
     rendered_html = template_html

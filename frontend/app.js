@@ -20,6 +20,21 @@ const DEFAULT_SETTINGS = {
 
 let userSettings = { ...DEFAULT_SETTINGS };
 
+// MEXC Referral Invite Code for Affiliate Kickbacks
+const MEXC_INVITE_CODE = "mexc-radar";
+
+function getMexcTradeUrl(item) {
+  if (item && item.mexc_trade_url) {
+    if (!item.mexc_trade_url.includes("inviteCode")) {
+      const sep = item.mexc_trade_url.includes("?") ? "&" : "?";
+      return `${item.mexc_trade_url}${sep}inviteCode=${MEXC_INVITE_CODE}`;
+    }
+    return item.mexc_trade_url;
+  }
+  const sym = (item && item.symbol) ? item.symbol : "BTCUSDT";
+  return `https://www.mexc.com/exchange/${sym.replace("USDT", "_USDT")}?inviteCode=${MEXC_INVITE_CODE}`;
+}
+
 // DOM Elements
 const cardsContainer = document.getElementById("cards-container");
 const tableContainer = document.getElementById("table-container");
@@ -383,7 +398,7 @@ function renderTable(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
               Details
             </a>
-            <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="tv-table-link">
+            <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="tv-table-link" title="Trade on MEXC (Fee Discount Applied)">
               MEXC ↗
             </a>
           </div>
@@ -417,7 +432,7 @@ function renderTable(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
               Details
             </a>
-            <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="tv-table-link">
+            <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="tv-table-link" title="Trade on MEXC (Fee Discount Applied)">
               MEXC ↗
             </a>
           </div>
@@ -514,7 +529,7 @@ function renderCards(items, totalCount) {
       </div>
 
       <div style="display: flex; gap: 8px;">
-        <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="card-action-btn" style="flex: 2;">
+        <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="card-action-btn" style="flex: 2;" title="Trade on MEXC (Fee Discount Applied)">
           ${t("tradeOnMexc")} ↗
         </a>
         <button onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" class="card-action-btn" style="flex: 1; cursor: pointer; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Copy Alert for Discord/Telegram">
@@ -625,22 +640,16 @@ function setupRefresh() {
   }
 }
 
-// Methodology Modal Listeners
+// Methodology Navigation
 function setupModal() {
-  if (btnMethodology && methodologyModal && modalCloseBtn) {
-    btnMethodology.addEventListener("click", () => {
-      methodologyModal.classList.remove("hidden");
-    });
-    modalCloseBtn.addEventListener("click", () => {
-      methodologyModal.classList.add("hidden");
-    });
-    methodologyModal.addEventListener("click", (e) => {
-      if (e.target === methodologyModal) {
-        methodologyModal.classList.add("hidden");
-      }
+  if (btnMethodology) {
+    btnMethodology.addEventListener("click", (e) => {
+      // Direct navigation to dedicated /methodology page
+      window.location.href = "/methodology";
     });
   }
 }
+
 
 // Settings Modal UI & Logic
 function setupSettingsModal() {

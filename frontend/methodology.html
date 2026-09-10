@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Methodology & Calculation Formulas | MEXC Liquidity Terminal</title>
-  <meta name="description" content="Detailed mathematical formulas and technical specifications for orderbook imbalance, liquidation trigger cost, and breakout probability algorithms on MEXC spot markets.">
+  <title>定量的板情報解析・損切り雪崩検出アルゴリズム仕様書 | MEXC Liquidity Terminal</title>
+  <meta name="description" content="MEXC現物アルトコインにおける板の深さ（Orderbook Depth）、累積板厚トリガーコスト（Trigger Capital）、損切りクラスター帯、およびデュアルスコア評価モデルの完全な数式定義と定量的仕様書。">
   <link rel="canonical" href="/methodology">
 
   <!-- Schema.org JSON-LD TechArticle -->
@@ -12,82 +12,227 @@
   {
     "@context": "https://schema.org",
     "@type": "TechArticle",
-    "headline": "Cryptocurrency Orderbook Depth & Liquidation Cascade Methodology",
-    "description": "Mathematical formulation and quantitative algorithms for calculating cumulative depth trigger costs and structural orderbook imbalance.",
+    "headline": "Cryptocurrency Orderbook Depth, Cascade Liquidation & Imbalance Methodology",
+    "description": "Mathematical formulation and quantitative algorithms for calculating cumulative depth trigger costs, stop loss clustering, and structural orderbook imbalance on MEXC spot markets.",
     "author": {
       "@type": "Organization",
       "name": "MEXC Liquidity Terminal"
     },
-    "inLanguage": "en"
+    "inLanguage": "ja"
   }
   </script>
 
   <!-- Pro Finance Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
+
+  <!-- KaTeX for Beautiful Mathematical Formula Rendering -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+
   <style>
+    body {
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      background-color: var(--tv-bg-base);
+      color: var(--tv-text-primary);
+      line-height: 1.7;
+    }
     .method-container {
-      max-width: 860px;
-      margin: 32px auto 80px;
-      padding: 0 20px;
-    }
-    .method-header {
-      margin-bottom: 28px;
-    }
-    .method-header h1 {
-      font-size: 24px;
-      font-weight: 700;
-      color: var(--tv-text-bright);
-      margin-bottom: 8px;
-    }
-    .method-header p {
-      color: var(--tv-text-secondary);
-      font-size: 13px;
-    }
-    .method-card {
-      background-color: var(--tv-bg-surface);
-      border: 1px solid var(--tv-border);
-      border-radius: var(--radius-sm);
-      padding: 24px;
-      margin-bottom: 20px;
-    }
-    .method-card h2 {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--tv-blue);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .method-card p {
-      font-size: 13px;
-      color: var(--tv-text-primary);
-      line-height: 1.6;
-      margin-bottom: 12px;
-    }
-    .method-card ul {
-      margin-left: 20px;
-      margin-bottom: 12px;
-      color: var(--tv-text-primary);
-      font-size: 13px;
-      line-height: 1.6;
+      max-width: 980px;
+      margin: 36px auto 100px;
+      padding: 0 24px;
     }
     .back-nav {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .back-nav a {
       color: var(--tv-blue);
       text-decoration: none;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      padding: 6px 12px;
+      background: var(--tv-bg-surface);
+      border: 1px solid var(--tv-border);
+      border-radius: var(--radius-sm);
+      transition: all 0.15s ease;
     }
-    .back-nav a:hover { text-decoration: underline; }
+    .back-nav a:hover {
+      background: var(--tv-bg-hover);
+      border-color: var(--tv-blue);
+      text-decoration: none;
+    }
+    .method-header {
+      background: linear-gradient(135deg, rgba(30,34,45,0.95), rgba(20,24,35,0.98));
+      border: 1px solid var(--tv-border);
+      border-radius: var(--radius-md);
+      padding: 32px 36px;
+      margin-bottom: 32px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .method-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--tv-blue);
+      background: var(--tv-blue-tint);
+      border: 1px solid rgba(41,98,255,0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+    .method-header h1 {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--tv-text-bright);
+      margin-bottom: 12px;
+      letter-spacing: -0.3px;
+    }
+    .method-header p {
+      color: var(--tv-text-secondary);
+      font-size: 14px;
+      max-width: 780px;
+      line-height: 1.6;
+    }
+    .method-card {
+      background-color: var(--tv-bg-surface);
+      border: 1px solid var(--tv-border);
+      border-radius: var(--radius-md);
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .method-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--tv-text-bright);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--tv-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .method-card h2 .sec-num {
+      color: var(--tv-blue);
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .method-card p {
+      font-size: 14px;
+      color: var(--tv-text-primary);
+      margin-bottom: 14px;
+    }
+    .formula-box {
+      background: #0d1017;
+      border: 1px solid #242936;
+      border-left: 4px solid var(--tv-blue);
+      border-radius: var(--radius-sm);
+      padding: 18px 24px;
+      margin: 18px 0;
+      overflow-x: auto;
+      text-align: center;
+      font-size: 16px;
+    }
+    .formula-desc {
+      background: rgba(41, 98, 255, 0.05);
+      border: 1px solid rgba(41, 98, 255, 0.15);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--tv-text-secondary);
+    }
+    .formula-desc ul {
+      margin: 6px 0 0 20px;
+      padding: 0;
+    }
+    .formula-desc li {
+      margin-bottom: 4px;
+    }
+    .highlight-term {
+      color: var(--tv-text-bright);
+      font-weight: 600;
+    }
+    .concept-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .concept-box {
+      background: var(--tv-bg-elevated);
+      border: 1px solid var(--tv-border);
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+    }
+    .concept-box h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .concept-box.down { border-left: 3px solid var(--tv-red); }
+    .concept-box.down h3 { color: var(--tv-red); }
+    .concept-box.up { border-left: 3px solid var(--tv-green); }
+    .concept-box.up h3 { color: var(--tv-green); }
+    .concept-box p {
+      font-size: 12px;
+      color: var(--tv-text-secondary);
+      margin: 0;
+      line-height: 1.6;
+    }
+    .promo-banner {
+      background: linear-gradient(135deg, rgba(8, 153, 129, 0.15), rgba(41, 98, 255, 0.12));
+      border: 1px solid rgba(8, 153, 129, 0.35);
+      border-radius: var(--radius-md);
+      padding: 24px 28px;
+      margin-top: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .promo-text h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--tv-text-bright);
+      margin-bottom: 6px;
+    }
+    .promo-text p {
+      font-size: 13px;
+      color: var(--tv-text-secondary);
+      margin: 0;
+    }
+    .promo-btn {
+      background: var(--tv-green);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s ease, transform 0.1s ease;
+      box-shadow: 0 4px 12px rgba(8, 153, 129, 0.3);
+    }
+    .promo-btn:hover {
+      background: #0aa88f;
+      transform: translateY(-1px);
+    }
   </style>
 </head>
 <body class="tv-theme">
@@ -103,81 +248,186 @@
       </a>
       <div class="brand-tag">Methodology & Technical Specifications</div>
     </div>
-    <div class="nav-right">
+    <div class="nav-right" style="display: flex; align-items: center; gap: 12px;">
+      <a id="mexc-header-ref-btn" href="https://www.mexc.com/register?inviteCode=mexc-radar" target="_blank" rel="noopener noreferrer" class="tv-btn" style="background: rgba(8,153,129,0.15); color: var(--tv-green); border: 1px solid rgba(8,153,129,0.4); text-decoration: none; font-size: 11px; font-weight: 700;">
+        🎁 MEXC口座開設（手数料永久割引）
+      </a>
       <a href="/" class="tv-btn tv-btn-primary" style="text-decoration: none;">Launch Screener ↗</a>
     </div>
   </header>
 
   <div class="method-container">
     <div class="back-nav">
-      <a href="/">← Return to Live Market Screener</a>
+      <a href="/">← リアルタイム板監視スクリーナーへ戻る</a>
     </div>
 
     <div class="method-header">
-      <h1>Quantitative Methodology & Algorithmic Specs</h1>
-      <p>Scientific documentation of cumulative orderbook depth, liquidation cascades, and imbalance formulas.</p>
+      <span class="method-badge">Quantitative Paper & Specifications</span>
+      <h1>アルトコイン板情報解析・損切り雪崩検出アルゴリズム仕様書</h1>
+      <p>
+        本ドキュメントは、MEXC現物市場における1,000銘柄以上のアルトコイン板情報（Orderbook）から、見せかけの気配値に惑わされず、構造的な流動性の歪み・損切り密集帯・成行トリガー必要資本を客観的に算出するクオンツ計算モデルの完全な数理仕様を定義します。
+      </p>
     </div>
 
+    <!-- Chapter 1 -->
     <article class="method-card">
-      <h2>1. Stop Loss Cluster Zone ($P_{stop}$) Definition</h2>
+      <h2><span class="sec-num">01.</span> アルトコイン市場における構造的流動性トラップ</h2>
       <p>
-        In cryptocurrency retail markets, stop loss orders are systematically clustered just beneath key 24-hour swing lows (for long positions) and above key swing highs (for short positions). 
+        ビットコイン（BTC）やイーサリアム（ETH）などのメジャー通貨とは異なり、新興草コイン・アルトコイン市場の板（Orderbook）には、以下のような特有の構造的脆弱性が存在します：
       </p>
-      <p>The algorithm defines the cluster thresholds as follows:</p>
-      <div class="tv-code-box">
-        $$P_{stop\_long} = \text{SwingLow}_{24h} \times (1 - 0.005)$$
-        $$P_{stop\_short} = \text{SwingHigh}_{24h} \times (1 + 0.005)$$
+      <div class="concept-grid">
+        <div class="concept-box down">
+          <h3>薄い板厚と見せかけの流動性</h3>
+          <p>日次取引高が数百万円〜数千万円規模であっても、直近の指値板には数千〜数万円程度しか並んでいない銘柄が多数存在します。大口が一度に成行注文を入れると、一瞬で数十％の価格乖離（スリッページ）が発生します。</p>
+        </div>
+        <div class="concept-box up">
+          <h3>ストップロスの密集と連鎖反応</h3>
+          <p>多くの個人投資家は「直近24時間の最安値・最高値のすぐ外側」に同一の損切り逆指値注文を集中配置します。この密集ラインが突破されると、市場成行売りが雪崩のように連鎖（アバランチ効果）を起こします。</p>
+        </div>
       </div>
       <p>
-        A -0.5% margin below the low (or +0.5% above the high) is applied to capture the exact cluster zone where cascade liquidations trigger.
+        本システムは、最良気配値（スプレッド）だけを見る一般的なインジケーターとは異なり、<strong>「特定の重要価格帯を突き崩すために、現実に何USDTの成行注文が必要か」</strong>という累積板厚（Cumulative Depth）をリアルタイムに直接計算します。
       </p>
     </article>
 
+    <!-- Chapter 2 -->
     <article class="method-card">
-      <h2>2. Cumulative Depth Trigger Cost (USDT)</h2>
+      <h2><span class="sec-num">02.</span> 損切り密集帯（Stop-Loss Cluster Zone）の数理モデル</h2>
       <p>
-        Rather than relying on superficial top-of-book quotes, the terminal computes the exact cumulative net capital required to consume all resting limit orders up to the cluster zone.
+        個人トレーダーの損切り注文は、ランダムに配置されているのではなく、支持線（サポート）の直下、および抵抗線（レジスタンス）の直上に集中（クラスタリング）します。
       </p>
-      <div class="tv-code-box">
-        $$\text{Trigger Cost (Long Cascade)} = \sum_{P_{bid} \ge P_{stop\_long}} (P_{bid} \times Q_{bid})$$
-        $$\text{Trigger Cost (Short Squeeze)} = \sum_{P_{ask} \le P_{stop\_short}} (P_{ask} \times Q_{ask})$$
+      
+      <div class="formula-box">
+        $$P_{\text{stop}}^{\text{long}} = S_{\text{low}} \times (1 - \delta_{\text{buffer}})$$
+        $$P_{\text{stop}}^{\text{short}} = S_{\text{high}} \times (1 + \delta_{\text{buffer}})$$
+      </div>
+
+      <div class="formula-desc">
+        <span class="highlight-term">【変数定義】</span>
+        <ul>
+          <li>$S_{\text{low}}$: スイング安値（直近の局所最安値または24時間最安値）</li>
+          <li>$S_{\text{high}}$: スイング高値（直近の局所最高値または24時間最高値）</li>
+          <li>$\delta_{\text{buffer}} = 0.005$（0.5%）: サポート/レジスタンス直下に置かれる一般的なロスカット配置マージン</li>
+        </ul>
       </div>
       <p>
-        This metric reveals the true market depth: exactly how many USDT of aggressive market selling (or buying) would blow through support (or resistance) and initiate a liquidation domino effect.
+        価格がこの $P_{\text{stop}}$ に達した瞬間、板に並んでいた指値の買い支えが消滅し、成行ロスカットの雪崩が発火します。
       </p>
     </article>
 
+    <!-- Chapter 3 -->
     <article class="method-card">
-      <h2>3. Orderbook Imbalance Index ($\pm 3\%$)</h2>
+      <h2><span class="sec-num">03.</span> 累積板厚トリガーコスト（Trigger Capital）の算出モデル</h2>
       <p>
-        Evaluates the supply-demand asymmetry within a tight $\pm 3\%$ price corridor from the mid-market price:
+        損切りライン $P_{\text{stop}}$ までの間に並んでいる全ての未約定指値（Resting Limit Orders）を食い尽くすために必要な正味の成行資本（USDT）を、離散和積積分によってリアルタイムに算出します。
       </p>
-      <div class="tv-code-box">
-        $$\text{Bid Ratio} = \frac{\sum_{P_{bid} \ge 0.97 \times P} (P_{bid} \times Q_{bid})}{\text{Total Volume}_{\pm 3\%}} \times 100\%$$
+
+      <div class="formula-box">
+        $$C_{\text{trigger}}^{\text{down}} = \sum_{P_{\text{bid}}^{(i)} \ge P_{\text{stop}}^{\text{long}}} \left( P_{\text{bid}}^{(i)} \times Q_{\text{bid}}^{(i)} \right)$$
+        $$C_{\text{trigger}}^{\text{up}} = \sum_{P_{\text{ask}}^{(j)} \le P_{\text{stop}}^{\text{short}}} \left( P_{\text{ask}}^{(j)} \times Q_{\text{ask}}^{(j)} \right)$$
+      </div>
+
+      <div class="formula-desc">
+        <span class="highlight-term">【数式の意義】</span>
+        <ul>
+          <li>$P_{\text{bid}}^{(i)}, Q_{\text{bid}}^{(i)}$: 買い板の $i$ 番目の指値価格と指値数量</li>
+          <li>$P_{\text{ask}}^{(j)}, Q_{\text{ask}}^{(j)}$: 売り板の $j$ 番目の指値価格と指値数量</li>
+          <li><strong>$C_{\text{trigger}}^{\text{down}}$（下落雪崩トリガー額）</strong>: 支持線を貫通させるために必要な成行売りの合計USDT額</li>
+          <li><strong>$C_{\text{trigger}}^{\text{up}}$（上昇踏み上げトリガー額）</strong>: 抵抗線を突破してショートを焼き尽くすために必要な成行買いの合計USDT額</li>
+        </ul>
       </div>
       <p>
-        When the Bid Ratio drops below 20%, the asset exhibits acute structural sell-side vulnerability.
+        例えば、$C_{\text{trigger}} = \$1,200$ の場合、<strong>「わずか1,200ドルの成行注文が入るだけで、支持線が崩壊してロスカット雪崩が始まる極めて脆い状態」</strong>であることを示します。
       </p>
     </article>
 
+    <!-- Chapter 4 -->
     <article class="method-card">
-      <h2>4. Dual-Score Algorithmic Evaluation</h2>
+      <h2><span class="sec-num">04.</span> 板不均衡指数（Orderbook Imbalance $\pm 3\%$）</h2>
+      <p>
+        現在価格 $P_{\text{mid}}$ を中心に、上下 $\pm 3\%$ の至近価格帯に存在する買い圧力・売り圧力の歪み（アシンメトリ）を測定します。
+      </p>
+
+      <div class="formula-box">
+        $$V_{\text{bid}}^{(3\%)} = \sum_{P_{\text{bid}} \ge 0.97 \cdot P_{\text{mid}}} (P_{\text{bid}} \cdot Q_{\text{bid}}), \quad V_{\text{ask}}^{(3\%)} = \sum_{P_{\text{ask}} \le 1.03 \cdot P_{\text{mid}}} (P_{\text{ask}} \cdot Q_{\text{ask}})$$
+        $$\text{Bid Ratio (\%)} = \frac{V_{\text{bid}}^{(3\%)}}{V_{\text{bid}}^{(3\%)} + V_{\text{ask}}^{(3\%)}} \times 100\%$$
+      </div>
+
+      <p>
+        買い板比率（Bid Ratio）が 25% 未満に落ち込んでいる場合、上値に重い売り壁が立ち塞がり、下値はスカスカで崩壊寸前であることを統計的に検知します。
+      </p>
+    </article>
+
+    <!-- Chapter 5 -->
+    <article class="method-card">
+      <h2><span class="sec-num">05.</span> デュアルスコア定式化モデル（Dual-Score Model）</h2>
+      <p>
+        トレーダーが一目で相場の歪みを直感把握できるよう、本ターミナルは2つの直交するクオンツスコア（0〜99）を算出して提示します。
+      </p>
+
+      <div class="concept-grid">
+        <div class="concept-box down">
+          <h3>🎯 発生確率スコア（Breakout Probability: 0〜99）</h3>
+          <p>「そのラインが今まさに突破される確からしさ」を評価。損切りラインまでの距離の近さ（最大45点）、貫通に必要な資金の少なさ（最大35点）、板の不均衡（最大20点）を合算して正規化。</p>
+        </div>
+        <div class="concept-box up">
+          <h3>💣 破壊力倍率スコア（Impact Multiplier: 0〜99）</h3>
+          <p>「突破された時の反動・ボラティリティの凄まじさ」を評価。日次出来高に対して板厚がどれだけ薄いか（Turnover-to-Depth比、最大70点）と直近の変動率（最大30点）から算出。</p>
+        </div>
+      </div>
+
+      <div class="formula-box">
+        $$S_{\text{prob}} = \min\Big(99, \, \max\big(10, \, \text{Score}_{\text{dist}} + \text{Score}_{\text{cost}} + \text{Score}_{\text{imbalance}}\big)\Big)$$
+        $$S_{\text{impact}} = \min\Big(99, \, \max\big(10, \, 0.4 \times \frac{\text{Volume}_{24h}}{C_{\text{trigger}}} + 2.5 \times |\Delta P_{24h}|\big)\Big)$$
+      </div>
+    </article>
+
+    <!-- Chapter 6 -->
+    <article class="method-card">
+      <h2><span class="sec-num">06.</span> 除外フィルターとデータクレンジング規則</h2>
+      <p>
+        ノイズや誤判定を完全に排除するため、以下の銘柄は自動アルゴリズムにより常時スクリーニングから除外されます：
+      </p>
       <ul>
-        <li>
-          <strong>🎯 Breakout Probability (0 - 99):</strong> Quantifies the likelihood of hitting the cluster line. Higher scores indicate tighter distance to the barrier (&lt; 3%), low cumulative trigger cost (&lt; $10,000), and severe orderbook imbalance.
-        </li>
-        <li>
-          <strong>💣 Impact Multiplier (0 - 99):</strong> Quantifies the post-break volatility potential (liquidity trap severity). It compares 24h trading volume against the fragile orderbook wall. An asset trading $500k/day backed by only $3k of orderbook depth will experience a violent reaction upon breach.
-        </li>
+        <li><strong>ステーブルコイン・合成資産の完全除外:</strong> 価格が $0.96 \sim $1.04 のドルペグ通貨、およびベース名に USD, EUR 等を含むペグ銘柄。</li>
+        <li><strong>バーコードチャート（流動性枯渇）の除外:</strong> 24時間の値幅が 3.5% 未満で、板が動かず横ばい推移している銘柄。</li>
+        <li><strong>過大スプレッドの除外:</strong> 最良気配のスプレッドが 3.5% を超える超過疎銘柄（スリッページ過大）。</li>
+        <li><strong>メジャーキャップの除外:</strong> 大手主導通貨（BTC, ETH, SOL等）は除外し、構造的な歪みが最も発生しやすい中小型アルトコイン（日次出来高2万〜250万USDT）にフォーカス。</li>
       </ul>
     </article>
 
-    <article class="method-card tv-disclaimer">
-      <h2 style="color: var(--tv-yellow);">⚠️ Regulatory Disclaimer & Academic Intent</h2>
-      <p>
-        This terminal and its published documentation are provided solely for quantitative research, data analytics, and educational visualization of financial orderbook mechanics. No information provided constitutes investment advice, trading signals, financial recommendations, or solicitation. Trading cryptocurrencies carries substantial financial risk.
+    <!-- Chapter 7: Disclaimer & Affiliate Box -->
+    <div class="promo-banner">
+      <div class="promo-text">
+        <h3>🚀 MEXC 公式アカウントで板取引を始める</h3>
+        <p>当ターミナル限定の紹介コード経由で口座開設すると、現物取引手数料の永久割引および最大$1,000相当の限定ボーナスが適用されます。</p>
+      </div>
+      <a id="mexc-footer-ref-btn" href="https://www.mexc.com/register?inviteCode=mexc-radar" target="_blank" rel="noopener noreferrer" class="promo-btn">
+        <span>新規登録して手数料割引を受け取る ↗</span>
+      </a>
+    </div>
+
+    <article class="method-card tv-disclaimer" style="margin-top: 24px;">
+      <h2 style="color: var(--tv-yellow); font-size: 15px;">⚠️ 免責事項・学術利用に関する声明</h2>
+      <p style="font-size: 12px; color: var(--tv-text-secondary); margin: 0;">
+        本ターミナルおよび本ドキュメントに掲載されているアルゴリズム、数式、データ分析結果は、暗号資産市場の板構造と流動性の定量的研究・データ可視化を目的として提供されています。いかなる内容も、金融商品の売買推奨、投資助言、取引シグナル、または投資勧誘を構成するものではありません。暗号資産取引には元本割れを含む重大なリスクが伴います。取引に関する最終判断は必ずご自身の責任で行ってください。
       </p>
     </article>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Auto render LaTeX math with KaTeX
+      if (typeof renderMathInElement === "function") {
+        renderMathInElement(document.body, {
+          delimiters: [
+            {left: '$$', right: '$$', display: true},
+            {left: '$', right: '$', display: false}
+          ],
+          throwOnError: false
+        });
+      }
+    });
+  </script>
 </body>
 </html>

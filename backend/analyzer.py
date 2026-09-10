@@ -1,4 +1,7 @@
+import os
 from typing import Any, Dict, List, Optional, Tuple
+
+MEXC_INVITE_CODE = os.getenv("MEXC_INVITE_CODE", "mexc-radar")
 
 class LiquidityAnalyzer:
     """
@@ -295,5 +298,5 @@ class LiquidityAnalyzer:
             "ask_ratio_pct": imbalance["ask_ratio_pct"],
             "bid_vol_3pct_usdt": imbalance["bid_vol_usdt"],
             "ask_vol_3pct_usdt": imbalance["ask_vol_usdt"],
-            "mexc_trade_url": f"https://www.mexc.com/exchange/{symbol.replace('USDT', '_USDT')}",
+            "mexc_trade_url": f"https://www.mexc.com/exchange/{symbol.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}",
         }
