@@ -42,6 +42,7 @@ GLOBAL_STATE: Dict[str, Any] = {
     "target_pool": [],    # 現在の巡回対象リスト
     "last_ticker_sync": 0.0,
     "last_batch_sync": 0.0,
+    "backoff_until": 0.0, # 429検知時のグローバルクールダウン時刻
     "is_running": True,
 }
 
@@ -49,7 +50,7 @@ GLOBAL_STATE: Dict[str, Any] = {
 BATCH_SIZE = 8            # 1バッチあたりの並行取得数
 BATCH_SLEEP_SECONDS = 0.5 # バッチ間のウェイト（レート制限20req/secを絶対に踏まない安全設計）
 
-async def analyze_single_symbol(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+async def analyze_single_symbol(item: Dict[str, Any], use_klines: bool = False) -> Optional[Dict[str, Any]]:
     symbol = item.get("symbol", "")
     try:
         current_price = float(item.get("lastPrice", 0.0))
@@ -61,8 +62,16 @@ async def analyze_single_symbol(item: Dict[str, Any]) -> Optional[Dict[str, Any]
         if current_price <= 0:
             return None
 
-        # ローソク足API通信を丸ごとスキップし、板情報（Depth）の1通信のみに集約
+        # 板情報（Depth）の取得
         depth = await client.get_order_book(symbol, limit=70)
+
+        # 個別詳細ページ等でローソク足併用が指定された場合のみ klines を取得して精密スイング計算
+        klines = None
+        if use_klines:
+            try:
+                klines = await client.get_klines(symbol, interval="15m", limit=96)
+            except Exception as e_kline:
+                logger.debug(f"Failed fetching klines for {symbol}: {e_kline}")
 
         return LiquidityAnalyzer.analyze_symbol(
             symbol=symbol,
@@ -70,13 +79,17 @@ async def analyze_single_symbol(item: Dict[str, Any]) -> Optional[Dict[str, Any]
             volume_24h_usdt=volume_24h,
             price_change_24h_pct=price_change_pct,
             depth=depth,
+            klines=klines,
             swing_low=swing_low,
             swing_high=swing_high,
         )
     except Exception as e:
-        # 429 Too Many Requests検知時は自動バックオフ
-        if "429" in str(e):
-            await asyncio.sleep(2.0)
+        err_str = str(e)
+        # 429 Too Many Requests検知時はグローバルバックオフを発動（10秒間全体一時停止）
+        if "429" in err_str or "Too Many Requests" in err_str:
+            cooldown = 10.0
+            GLOBAL_STATE["backoff_until"] = max(GLOBAL_STATE.get("backoff_until", 0.0), time.time() + cooldown)
+            logger.warning(f"Rate limit 429 triggered on {symbol}. Global backoff set for {cooldown}s.")
         logger.debug(f"Failed analyzing {symbol}: {e}")
         return None
 
@@ -128,22 +141,34 @@ async def update_target_pool():
         GLOBAL_STATE["target_pool"] = filtered
         GLOBAL_STATE["last_ticker_sync"] = time.time()
         logger.info(f"Updated monitoring pool to ALL eligible symbols: {len(GLOBAL_STATE['target_pool'])} symbols")
+
+        # 監視対象外となった古い銘柄をキャッシュから安全にパージ（メモリ健全化）
+        valid_symbols = {t.get("symbol") for t in filtered if t.get("symbol")}
+        stale_symbols = [s for s in list(GLOBAL_STATE["items_map"].keys()) if s not in valid_symbols]
+        for s in stale_symbols:
+            GLOBAL_STATE["items_map"].pop(s, None)
+        if stale_symbols:
+            logger.info(f"Cleaned up {len(stale_symbols)} stale symbols from memory cache")
     except Exception as e:
         logger.error(f"Failed updating target pool: {e}")
 
 
-
-
-
 async def background_rotation_worker():
     """
-    バックグラウンドで120銘柄を8銘柄ずつ安全なペースで巡回し続けるワーカー
+    バックグラウンドで全対象銘柄を8銘柄ずつ安全なペースで巡回し続けるワーカー
     APIレートリミットを絶対に踏まず、ユーザーのリクエストには即時0msでキャッシュ応答する
     """
     logger.info("Background rotation worker started.")
     await update_target_pool()
 
     while GLOBAL_STATE["is_running"]:
+        # グローバルバックオフ（429検知後のクールダウン）待機
+        now = time.time()
+        if GLOBAL_STATE.get("backoff_until", 0.0) > now:
+            wait_time = GLOBAL_STATE["backoff_until"] - now
+            logger.warning(f"Rate limit backoff active. Pausing worker for {wait_time:.1f}s")
+            await asyncio.sleep(wait_time)
+
         pool = list(GLOBAL_STATE["target_pool"])
         if not pool:
             await asyncio.sleep(3.0)
@@ -154,6 +179,14 @@ async def background_rotation_worker():
         for i in range(0, len(pool), BATCH_SIZE):
             if not GLOBAL_STATE["is_running"]:
                 break
+
+            # バッチ実行前にもバックオフチェック
+            now = time.time()
+            if GLOBAL_STATE.get("backoff_until", 0.0) > now:
+                wait_time = GLOBAL_STATE["backoff_until"] - now
+                logger.warning(f"Batch pause for backoff: {wait_time:.1f}s")
+                await asyncio.sleep(wait_time)
+
             batch = pool[i : i + BATCH_SIZE]
             tasks = [analyze_single_symbol(item) for item in batch]
             results = await asyncio.gather(*tasks)
@@ -348,25 +381,21 @@ async def pair_detail_page(symbol: str, request: Request):
     sym_clean = symbol.strip().upper()
     item = GLOBAL_STATE["items_map"].get(sym_clean)
 
-    # メモリに未解析の場合、対象プールから見つけてオンデマンド即時解析
-    if not item:
-        target_ticker = next((t for t in GLOBAL_STATE["target_pool"] if t.get("symbol") == sym_clean), None)
-        if target_ticker:
-            item = await analyze_single_symbol(target_ticker)
-            if item:
-                GLOBAL_STATE["items_map"][sym_clean] = item
-
-    if not item:
-        # 見つからない場合でもティッカーを1件取得試行
+    # 対象銘柄のティッカー情報を取得
+    target_ticker = next((t for t in GLOBAL_STATE["target_pool"] if t.get("symbol") == sym_clean), None)
+    if not target_ticker:
         try:
             tickers = await client.get_24hr_tickers()
-            t = next((x for x in tickers if x.get("symbol") == sym_clean), None)
-            if t:
-                item = await analyze_single_symbol(t)
-                if item:
-                    GLOBAL_STATE["items_map"][sym_clean] = item
+            target_ticker = next((x for x in tickers if x.get("symbol") == sym_clean), None)
         except Exception:
             pass
+
+    # 個別ページ表示時は、15m足ローソク足（klines）を併用した精密スイング分析をオンデマンド実行
+    if target_ticker:
+        precision_item = await analyze_single_symbol(target_ticker, use_klines=True)
+        if precision_item:
+            item = precision_item
+            GLOBAL_STATE["items_map"][sym_clean] = precision_item
 
     if not item:
         raise HTTPException(status_code=404, detail=f"Pair {sym_clean} not found or not eligible")

@@ -298,17 +298,46 @@ function renderDashboard() {
   }
 }
 
-// Render Screener Table View (TradingView High-Density Grid)
-function renderTable(items, totalCount) {
-  tableBody.innerHTML = "";
+// Helper for real-time market flash animation
+function flashElement(el, isPositive) {
+  if (!el) return;
+  const cls = isPositive ? "flash-up" : "flash-down";
+  el.classList.remove("flash-up", "flash-down");
+  void el.offsetWidth; // force reflow
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 1200);
+}
 
+// Render Screener Table View (TradingView High-Density Grid with Smart DOM Diffing)
+function renderTable(items, totalCount) {
   if (items.length === 0) {
     tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--tv-text-muted); padding: 40px;">${t("noData")}</td></tr>`;
+    renderLoadMore(tableContainer, totalCount);
     return;
   }
 
+  // Remove empty placeholder row if present
+  const placeholder = tableBody.querySelector("td[colspan]");
+  if (placeholder) {
+    tableBody.innerHTML = "";
+  }
+
+  const existingRowsMap = new Map();
+  tableBody.querySelectorAll("tr[data-symbol]").forEach((tr) => {
+    existingRowsMap.set(tr.getAttribute("data-symbol"), tr);
+  });
+
+  const activeSymbols = new Set(items.map((x) => x.symbol));
+
+  // Remove rows no longer in filtered list
+  existingRowsMap.forEach((tr, sym) => {
+    if (!activeSymbols.has(sym)) {
+      tr.remove();
+      existingRowsMap.delete(sym);
+    }
+  });
+
   items.forEach((item) => {
-    const tr = document.createElement("tr");
     const isSqueeze = item.opportunity_side === "squeeze";
     const prob = item.opportunity_prob;
     const impact = item.opportunity_impact;
@@ -322,36 +351,80 @@ function renderTable(items, totalCount) {
 
     const impactClass = impact >= 75 ? "score-badge badge-impact high" : "score-badge badge-impact";
 
-    tr.innerHTML = `
-      <td class="col-symbol">
-        <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
-          ${item.symbol}
-        </a>
-      </td>
-      <td>${typeTag}</td>
-      <td class="col-mono">$${formatPrice(item.current_price)}</td>
-      <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
-      <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
-      <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
-      <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
-      <td><span class="score-badge badge-prob">${prob}</span></td>
-      <td><span class="${impactClass}">${impact}</span></td>
-      <td>
-        <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-            <span>Share</span>
-          </button>
-          <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
-            Details
+    let tr = existingRowsMap.get(item.symbol);
+    if (tr) {
+      // Check for price change & flash
+      const prevPrice = parseFloat(tr.getAttribute("data-price") || "0");
+      if (prevPrice > 0 && prevPrice !== item.current_price) {
+        flashElement(tr, item.current_price > prevPrice);
+      }
+      tr.setAttribute("data-price", item.current_price);
+
+      tr.innerHTML = `
+        <td class="col-symbol">
+          <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
+            ${item.symbol}
           </a>
-          <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="tv-table-link">
-            MEXC ↗
+        </td>
+        <td>${typeTag}</td>
+        <td class="col-mono">$${formatPrice(item.current_price)}</td>
+        <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
+        <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
+        <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
+        <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
+        <td><span class="score-badge badge-prob">${prob}</span></td>
+        <td><span class="${impactClass}">${impact}</span></td>
+        <td>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              <span>Share</span>
+            </button>
+            <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
+              Details
+            </a>
+            <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="tv-table-link">
+              MEXC ↗
+            </a>
+          </div>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    } else {
+      tr = document.createElement("tr");
+      tr.setAttribute("data-symbol", item.symbol);
+      tr.setAttribute("data-price", item.current_price);
+      tr.innerHTML = `
+        <td class="col-symbol">
+          <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
+            ${item.symbol}
           </a>
-        </div>
-      </td>
-    `;
-    tableBody.appendChild(tr);
+        </td>
+        <td>${typeTag}</td>
+        <td class="col-mono">$${formatPrice(item.current_price)}</td>
+        <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
+        <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
+        <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
+        <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
+        <td><span class="score-badge badge-prob">${prob}</span></td>
+        <td><span class="${impactClass}">${impact}</span></td>
+        <td>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              <span>Share</span>
+            </button>
+            <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
+              Details
+            </a>
+            <a href="${item.mexc_trade_url}" target="_blank" rel="noopener noreferrer" class="tv-table-link">
+              MEXC ↗
+            </a>
+          </div>
+        </td>
+      `;
+      tableBody.appendChild(tr);
+    }
   });
 
   // Load more handling for table

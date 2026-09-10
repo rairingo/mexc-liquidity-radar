@@ -186,18 +186,23 @@ class LiquidityAnalyzer:
         bids = depth.get("bids", [])
         asks = depth.get("asks", [])
 
-        # 1. スイングレベル判定（ティッカーの高安値があれば通信ゼロで即判定）
-        if swing_low is not None and swing_high is not None and swing_low > 0 and swing_high > 0:
+        # 1. スイングレベル判定（klinesローソク足があれば直近の波・局所スイングを精密計算、なければ24h高安値で即判定）
+        if klines and len(klines) > 0:
+            swing = cls.calculate_swing_levels(klines)
+            s_low = swing["swing_low"] or (swing_low or 0.0)
+            s_high = swing["swing_high"] or (swing_high or 0.0)
+            stop_long = swing["stop_loss_long"] or (s_low * 0.995)
+            stop_short = swing["stop_loss_short"] or (s_high * 1.005)
+        elif swing_low is not None and swing_high is not None and swing_low > 0 and swing_high > 0:
             s_low = swing_low
             s_high = swing_high
             stop_long = s_low * 0.995
             stop_short = s_high * 1.005
         else:
-            swing = cls.calculate_swing_levels(klines or [])
-            s_low = swing["swing_low"]
-            s_high = swing["swing_high"]
-            stop_long = swing["stop_loss_long"]
-            stop_short = swing["stop_loss_short"]
+            s_low = current_price * 0.95
+            s_high = current_price * 1.05
+            stop_long = s_low * 0.995
+            stop_short = s_high * 1.005
 
         # 2. 下落雪崩（ロング損切り）トリガーコスト
         avalanche = cls.calculate_avalanche_cost(bids, current_price, stop_long)

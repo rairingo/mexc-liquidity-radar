@@ -977,3 +977,25 @@ body.tv-theme {
   margin-top: 10px;
 }
 
+/* ==========================================================================
+   Real-Time Live Market Data Flash Effects
+   ========================================================================== */
+@keyframes flashGreen {
+  0% { background-color: rgba(8, 153, 129, 0.35); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashRed {
+  0% { background-color: rgba(242, 54, 69, 0.35); }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flashGreen 1.2s ease-out;
+}
+
+.flash-down {
+  animation: flashRed 1.2s ease-out;
+}
+
+
