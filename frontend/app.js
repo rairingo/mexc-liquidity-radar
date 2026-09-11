@@ -1,25 +1,43 @@
-// MEXC Liquidity Terminal - Frontend Application Logic (v4.1.3 Gateway Modal Fix)
-const APP_VERSION = "4.1.3";
+// MEXC Liquidity Terminal - Frontend Application Logic (v4.2.0 Column Sort & Min-Max Filters)
+const APP_VERSION = "4.2.0";
 
 let marketData = [];
 let currentMode = "all"; // 'all', 'avalanche', 'squeeze'
 let activeSortKey = "opportunity_prob"; // default: Probability
+let activeSortDirection = "desc"; // 'asc' or 'desc'
 let currentViewMode = "table"; // Default to TradingView Screener Table View
 let searchQuery = "";
 let displayLimit = 50; // Items per batch
 
-// User Customizable Filter & Alert Settings
+// User Customizable Filter & Alert Settings (Dual Min & Max Range)
 const DEFAULT_SETTINGS = {
   minProb: 0,
+  maxProb: 99,
   minImpact: 0,
+  maxImpact: 99,
+  minCost: 0,
   maxCost: 999999999,
   minVol: 0,
-  maxDistance: 10.0,
+  maxVol: 999999999999,
+  minDistance: 0.0,
+  maxDistance: 999,
+  minChange: -999,
+  maxChange: 999,
   alertMinProb: 70,
   alertMaxCost: 5000,
 };
 
 let userSettings = { ...DEFAULT_SETTINGS };
+
+// Load user settings from localStorage if available
+try {
+  const saved = localStorage.getItem("mexc_user_settings_v2");
+  if (saved) {
+    userSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+  }
+} catch (e) {
+  console.debug("Settings load error:", e);
+}
 
 // MEXC Referral Invite Code for Affiliate Kickbacks
 const MEXC_INVITE_CODE = "3tZTP";
@@ -77,15 +95,19 @@ const btnApplySettings = document.getElementById("btn-apply-settings");
 const btnResetSettings = document.getElementById("btn-reset-settings");
 const activeFilterBadge = document.getElementById("active-filter-badge");
 
-// Settings Inputs
+// Settings Inputs (Dual Min-Max Range Controls)
 const cfgMinProb = document.getElementById("cfg-min-prob");
-const dispMinProb = document.getElementById("disp-min-prob");
+const cfgMaxProb = document.getElementById("cfg-max-prob");
 const cfgMinImpact = document.getElementById("cfg-min-impact");
-const dispMinImpact = document.getElementById("disp-min-impact");
+const cfgMaxImpact = document.getElementById("cfg-max-impact");
+const cfgMinCost = document.getElementById("cfg-min-cost");
 const cfgMaxCost = document.getElementById("cfg-max-cost");
 const cfgMinVol = document.getElementById("cfg-min-vol");
+const cfgMaxVol = document.getElementById("cfg-max-vol");
+const cfgMinDistance = document.getElementById("cfg-min-distance");
 const cfgMaxDistance = document.getElementById("cfg-max-distance");
-const dispMaxDistance = document.getElementById("disp-max-distance");
+const cfgMinChange = document.getElementById("cfg-min-change");
+const cfgMaxChange = document.getElementById("cfg-max-change");
 const cfgAlertMinProb = document.getElementById("cfg-alert-min-prob");
 const dispAlertMinProb = document.getElementById("disp-alert-min-prob");
 const cfgAlertMaxCost = document.getElementById("cfg-alert-max-cost");
@@ -261,7 +283,7 @@ function updateStatsOverview(items) {
   }
 }
 
-// Filter and Sort Data (Applying User Criteria)
+// Filter and Sort Data (Applying User Criteria with Dual Min & Max Range)
 function getFilteredAndSortedData() {
   let list = [...marketData];
 
@@ -271,26 +293,55 @@ function getFilteredAndSortedData() {
     list = list.filter((item) => item.symbol.toUpperCase().includes(q));
   }
 
-  // User Custom Display Filters
+  // User Custom Display Filters (Min & Max Range Bounds)
   list = list.filter((item) => {
-    if (item.opportunity_prob < userSettings.minProb) return false;
-    if (item.opportunity_impact < userSettings.minImpact) return false;
-    if (item.opportunity_cost > userSettings.maxCost) return false;
-    if (item.volume_24h_usdt < userSettings.minVol) return false;
-    if (Math.abs(item.opportunity_distance) > userSettings.maxDistance) return false;
+    // Probability Score (0 - 99)
+    const prob = item.opportunity_prob ?? 0;
+    if (prob < userSettings.minProb || prob > userSettings.maxProb) return false;
+
+    // Impact Multiplier (0 - 99)
+    const impact = item.opportunity_impact ?? 0;
+    if (impact < userSettings.minImpact || impact > userSettings.maxImpact) return false;
+
+    // Trigger Capital (USDT)
+    const cost = item.opportunity_cost ?? 0;
+    if (cost < userSettings.minCost || cost > userSettings.maxCost) return false;
+
+    // 24h Volume (USDT)
+    const vol = item.volume_24h_usdt ?? 0;
+    if (vol < userSettings.minVol || vol > userSettings.maxVol) return false;
+
+    // Distance to Barrier (%)
+    const dist = Math.abs(item.opportunity_distance ?? 0);
+    if (dist < userSettings.minDistance || dist > userSettings.maxDistance) return false;
+
+    // 24h Price Change (%)
+    const change = item.price_change_24h_pct ?? 0;
+    if (change < userSettings.minChange || change > userSettings.maxChange) return false;
+
     return true;
   });
 
-  // Sorting
+  // Sorting (Bidirectional ASC / DESC)
   list.sort((a, b) => {
     let key = activeSortKey;
-    let valA = a[key] ?? 0;
-    let valB = b[key] ?? 0;
+    let valA = a[key];
+    let valB = b[key];
 
-    const ascendingDefaultKeys = ["opportunity_cost", "opportunity_distance"];
-    const shouldAsc = ascendingDefaultKeys.includes(key);
+    // String comparison (Symbol, Type)
+    if (key === "symbol") {
+      const cmp = (a.symbol || "").localeCompare(b.symbol || "");
+      return activeSortDirection === "asc" ? cmp : -cmp;
+    }
+    if (key === "opportunity_side") {
+      const cmp = (a.opportunity_side || "").localeCompare(b.opportunity_side || "");
+      return activeSortDirection === "asc" ? cmp : -cmp;
+    }
 
-    return shouldAsc ? valA - valB : valB - valA;
+    valA = (typeof valA === "number" && !isNaN(valA)) ? valA : 0;
+    valB = (typeof valB === "number" && !isNaN(valB)) ? valB : 0;
+
+    return activeSortDirection === "asc" ? valA - valB : valB - valA;
   });
 
   return list;
@@ -593,13 +644,75 @@ function setupModeTabs() {
   });
 }
 
+// Table Header Sorting & Sync with Toolbar Pills
+function updateSortHeadersUI() {
+  const tableHeaders = document.querySelectorAll(".tv-screener-table thead th.sortable");
+  tableHeaders.forEach((th) => {
+    const key = th.getAttribute("data-sort");
+    const icon = th.querySelector(".sort-icon");
+    if (key === activeSortKey) {
+      th.classList.add("active");
+      if (icon) icon.textContent = activeSortDirection === "asc" ? " ▲" : " ▼";
+    } else {
+      th.classList.remove("active");
+      if (icon) icon.textContent = " ⇅";
+    }
+  });
+}
+
+function syncSortPillsUI() {
+  sortChips.forEach((chip) => {
+    const key = chip.getAttribute("data-sort");
+    if (key === activeSortKey) {
+      chip.classList.add("active");
+    } else {
+      chip.classList.remove("active");
+    }
+  });
+}
+
+function setupTableSorting() {
+  const tableHeaders = document.querySelectorAll(".tv-screener-table thead th.sortable");
+  tableHeaders.forEach((th) => {
+    th.addEventListener("click", () => {
+      const sortKey = th.getAttribute("data-sort");
+      if (!sortKey) return;
+
+      if (activeSortKey === sortKey) {
+        // 同じカラムを再度クリックした場合は昇順・降順を反転
+        activeSortDirection = activeSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        // 新しいカラムをクリックした場合
+        activeSortKey = sortKey;
+        // コスト・距離・シンボルは初期昇順（小さい順/A-Z）、それ以外は初期降順（大きい順）
+        const defaultAscKeys = ["opportunity_cost", "opportunity_distance", "symbol", "opportunity_side"];
+        activeSortDirection = defaultAscKeys.includes(sortKey) ? "asc" : "desc";
+      }
+
+      updateSortHeadersUI();
+      syncSortPillsUI();
+      renderDashboard();
+    });
+  });
+}
+
 // Sort Pills Listeners
 function setupSortPills() {
   sortChips.forEach((chip) => {
     chip.addEventListener("click", () => {
-      sortChips.forEach((c) => c.classList.remove("active"));
-      chip.classList.add("active");
-      activeSortKey = chip.getAttribute("data-sort");
+      const sortKey = chip.getAttribute("data-sort");
+      if (!sortKey) return;
+
+      if (activeSortKey === sortKey) {
+        activeSortDirection = activeSortDirection === "asc" ? "desc" : "asc";
+      } else {
+        activeSortKey = sortKey;
+        const defaultAscKeys = ["opportunity_cost", "opportunity_distance", "symbol", "opportunity_side"];
+        activeSortDirection = defaultAscKeys.includes(sortKey) ? "asc" : "desc";
+      }
+
+      updateSortHeadersUI();
+      syncSortPillsUI();
       renderDashboard();
     });
   });
@@ -653,8 +766,7 @@ function setupModal() {
   }
 }
 
-
-// Settings Modal UI & Logic
+// Settings Modal UI & Logic (Dual Min & Max Range Controls)
 function setupSettingsModal() {
   if (!settingsModal) return;
 
@@ -676,22 +788,7 @@ function setupSettingsModal() {
     }
   });
 
-  // Sliders Live Update
-  if (cfgMinProb && dispMinProb) {
-    cfgMinProb.addEventListener("input", (e) => {
-      dispMinProb.textContent = `≥ ${e.target.value}%`;
-    });
-  }
-  if (cfgMinImpact && dispMinImpact) {
-    cfgMinImpact.addEventListener("input", (e) => {
-      dispMinImpact.textContent = `≥ ${e.target.value}`;
-    });
-  }
-  if (cfgMaxDistance && dispMaxDistance) {
-    cfgMaxDistance.addEventListener("input", (e) => {
-      dispMaxDistance.textContent = `≤ ${parseFloat(e.target.value).toFixed(1)}%`;
-    });
-  }
+  // Sliders Live Update (Alert)
   if (cfgAlertMinProb && dispAlertMinProb) {
     cfgAlertMinProb.addEventListener("input", (e) => {
       dispAlertMinProb.textContent = `≥ ${e.target.value}%`;
@@ -701,18 +798,72 @@ function setupSettingsModal() {
   // Apply Settings Button
   if (btnApplySettings) {
     btnApplySettings.addEventListener("click", () => {
-      userSettings.minProb = parseInt(cfgMinProb.value, 10) || 0;
-      userSettings.minImpact = parseInt(cfgMinImpact.value, 10) || 0;
-      userSettings.maxCost = parseFloat(cfgMaxCost.value) || 999999999;
-      userSettings.minVol = parseFloat(cfgMinVol.value) || 0;
-      userSettings.maxDistance = parseFloat(cfgMaxDistance.value) || 10.0;
+      // 1. Probability (Min - Max)
+      let minProb = parseInt(cfgMinProb.value, 10);
+      let maxProb = parseInt(cfgMaxProb.value, 10);
+      if (isNaN(minProb) || minProb < 0) minProb = 0;
+      if (isNaN(maxProb) || maxProb > 99) maxProb = 99;
+      if (minProb > maxProb) {
+        const tmp = minProb; minProb = maxProb; maxProb = tmp;
+      }
+      userSettings.minProb = minProb;
+      userSettings.maxProb = maxProb;
+
+      // 2. Impact Multiplier (Min - Max)
+      let minImpact = parseInt(cfgMinImpact.value, 10);
+      let maxImpact = parseInt(cfgMaxImpact.value, 10);
+      if (isNaN(minImpact) || minImpact < 0) minImpact = 0;
+      if (isNaN(maxImpact) || maxImpact > 99) maxImpact = 99;
+      if (minImpact > maxImpact) {
+        const tmp = minImpact; minImpact = maxImpact; maxImpact = tmp;
+      }
+      userSettings.minImpact = minImpact;
+      userSettings.maxImpact = maxImpact;
+
+      // 3. Trigger Capital (Min - Max)
+      let minCost = parseFloat(cfgMinCost.value) || 0;
+      let maxCost = parseFloat(cfgMaxCost.value) || 999999999;
+      if (minCost > maxCost) {
+        const tmp = minCost; minCost = maxCost; maxCost = tmp;
+      }
+      userSettings.minCost = minCost;
+      userSettings.maxCost = maxCost;
+
+      // 4. Distance to Barrier (Min - Max)
+      let minDist = parseFloat(cfgMinDistance.value) || 0.0;
+      let maxDist = parseFloat(cfgMaxDistance.value) || 999;
+      if (minDist > maxDist) {
+        const tmp = minDist; minDist = maxDist; maxDist = tmp;
+      }
+      userSettings.minDistance = minDist;
+      userSettings.maxDistance = maxDist;
+
+      // 5. 24h Volume (Min - Max)
+      let minVol = parseFloat(cfgMinVol.value) || 0;
+      let maxVol = parseFloat(cfgMaxVol.value) || 999999999999;
+      if (minVol > maxVol) {
+        const tmp = minVol; minVol = maxVol; maxVol = tmp;
+      }
+      userSettings.minVol = minVol;
+      userSettings.maxVol = maxVol;
+
+      // 6. 24h Price Change (Min - Max)
+      let minChange = parseFloat(cfgMinChange.value) || -999;
+      let maxChange = parseFloat(cfgMaxChange.value) || 999;
+      if (minChange > maxChange) {
+        const tmp = minChange; minChange = maxChange; maxChange = tmp;
+      }
+      userSettings.minChange = minChange;
+      userSettings.maxChange = maxChange;
+
+      // Audio Alert Thresholds
       userSettings.alertMinProb = parseInt(cfgAlertMinProb.value, 10) || 70;
       userSettings.alertMaxCost = parseFloat(cfgAlertMaxCost.value) || 5000;
 
       saveSettings();
       settingsModal.classList.add("hidden");
       renderDashboard();
-      showToast("Filter and alert criteria saved & applied.");
+      showToast("Filter criteria applied.");
     });
   }
 
@@ -723,38 +874,50 @@ function setupSettingsModal() {
       saveSettings();
       updateSettingsModalUI();
       renderDashboard();
-      showToast("Reset to default thresholds.");
+      showToast("Reset to default filters.");
     });
   }
 }
 
 function updateSettingsModalUI() {
-  if (cfgMinProb) cfgMinProb.value = userSettings.minProb;
-  if (dispMinProb) dispMinProb.textContent = `≥ ${userSettings.minProb}%`;
+  if (cfgMinProb) cfgMinProb.value = userSettings.minProb ?? 0;
+  if (cfgMaxProb) cfgMaxProb.value = userSettings.maxProb ?? 99;
 
-  if (cfgMinImpact) cfgMinImpact.value = userSettings.minImpact;
-  if (dispMinImpact) dispMinImpact.textContent = `≥ ${userSettings.minImpact}`;
+  if (cfgMinImpact) cfgMinImpact.value = userSettings.minImpact ?? 0;
+  if (cfgMaxImpact) cfgMaxImpact.value = userSettings.maxImpact ?? 99;
 
-  if (cfgMaxCost) cfgMaxCost.value = userSettings.maxCost;
-  if (cfgMinVol) cfgMinVol.value = userSettings.minVol;
+  if (cfgMinCost) cfgMinCost.value = userSettings.minCost ?? 0;
+  if (cfgMaxCost) cfgMaxCost.value = userSettings.maxCost ?? 999999999;
 
-  if (cfgMaxDistance) cfgMaxDistance.value = userSettings.maxDistance;
-  if (dispMaxDistance) dispMaxDistance.textContent = `≤ ${userSettings.maxDistance.toFixed(1)}%`;
+  if (cfgMinDistance) cfgMinDistance.value = userSettings.minDistance ?? 0.0;
+  if (cfgMaxDistance) cfgMaxDistance.value = userSettings.maxDistance ?? 999;
 
-  if (cfgAlertMinProb) cfgAlertMinProb.value = userSettings.alertMinProb;
-  if (dispAlertMinProb) dispAlertMinProb.textContent = `≥ ${userSettings.alertMinProb}%`;
+  if (cfgMinVol) cfgMinVol.value = userSettings.minVol ?? 0;
+  if (cfgMaxVol) cfgMaxVol.value = userSettings.maxVol ?? 999999999999;
 
-  if (cfgAlertMaxCost) cfgAlertMaxCost.value = userSettings.alertMaxCost;
+  if (cfgMinChange) cfgMinChange.value = userSettings.minChange ?? -999;
+  if (cfgMaxChange) cfgMaxChange.value = userSettings.maxChange ?? 999;
+
+  if (cfgAlertMinProb) cfgAlertMinProb.value = userSettings.alertMinProb ?? 70;
+  if (dispAlertMinProb) dispAlertMinProb.textContent = `≥ ${userSettings.alertMinProb ?? 70}%`;
+  if (cfgAlertMaxCost) cfgAlertMaxCost.value = userSettings.alertMaxCost ?? 5000;
 }
 
 function updateActiveFilterBadge() {
   if (!activeFilterBadge) return;
   let count = 0;
-  if (userSettings.minProb > DEFAULT_SETTINGS.minProb) count++;
-  if (userSettings.minImpact > DEFAULT_SETTINGS.minImpact) count++;
-  if (userSettings.maxCost < DEFAULT_SETTINGS.maxCost) count++;
-  if (userSettings.minVol > DEFAULT_SETTINGS.minVol) count++;
-  if (userSettings.maxDistance < DEFAULT_SETTINGS.maxDistance) count++;
+  if ((userSettings.minProb ?? 0) > DEFAULT_SETTINGS.minProb) count++;
+  if ((userSettings.maxProb ?? 99) < DEFAULT_SETTINGS.maxProb) count++;
+  if ((userSettings.minImpact ?? 0) > DEFAULT_SETTINGS.minImpact) count++;
+  if ((userSettings.maxImpact ?? 99) < DEFAULT_SETTINGS.maxImpact) count++;
+  if ((userSettings.minCost ?? 0) > DEFAULT_SETTINGS.minCost) count++;
+  if ((userSettings.maxCost ?? 999999999) < DEFAULT_SETTINGS.maxCost) count++;
+  if ((userSettings.minDistance ?? 0) > DEFAULT_SETTINGS.minDistance) count++;
+  if ((userSettings.maxDistance ?? 999) < DEFAULT_SETTINGS.maxDistance) count++;
+  if ((userSettings.minVol ?? 0) > DEFAULT_SETTINGS.minVol) count++;
+  if ((userSettings.maxVol ?? 999999999999) < DEFAULT_SETTINGS.maxVol) count++;
+  if ((userSettings.minChange ?? -999) > DEFAULT_SETTINGS.minChange) count++;
+  if ((userSettings.maxChange ?? 999) < DEFAULT_SETTINGS.maxChange) count++;
 
   if (count > 0) {
     activeFilterBadge.textContent = count;
@@ -947,6 +1110,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setupRefresh();
   setupModal();
   setupSettingsModal();
+  setupTableSorting();
+  updateSortHeadersUI();
   setupAudioToggle();
   setupGatewayModal();
 

@@ -533,6 +533,34 @@ body.tv-theme {
   white-space: nowrap;
 }
 
+.tv-screener-table thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tv-screener-table thead th.sortable:hover {
+  color: var(--tv-text-bright);
+  background-color: var(--tv-bg-hover);
+}
+.tv-screener-table thead th.sortable .sort-icon {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.3;
+  transition: all 0.15s ease;
+}
+.tv-screener-table thead th.sortable:hover .sort-icon {
+  opacity: 0.7;
+}
+.tv-screener-table thead th.sortable.active {
+  color: var(--tv-blue);
+}
+.tv-screener-table thead th.sortable.active .sort-icon {
+  opacity: 1;
+  color: var(--tv-blue);
+  font-weight: 700;
+}
+
 .tv-screener-table tbody td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--tv-border-subtle);
@@ -950,6 +978,75 @@ body.tv-theme {
 
 .settings-input-col .tv-select {
   width: 140px;
+}
+
+/* Dual Min-Max Container */
+.minmax-dual-col {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 250px;
+  justify-content: flex-end;
+}
+
+.minmax-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--tv-bg-base);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  transition: border-color 0.15s ease;
+}
+.minmax-field:focus-within {
+  border-color: var(--tv-blue);
+}
+
+.minmax-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--tv-text-muted);
+  text-transform: uppercase;
+}
+
+.tv-num-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--tv-text-bright);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  width: 44px;
+  text-align: right;
+}
+.tv-num-input::-webkit-inner-spin-button,
+.tv-num-input::-webkit-outer-spin-button {
+  opacity: 0.8;
+}
+
+.minmax-unit {
+  font-size: 11px;
+  color: var(--tv-text-secondary);
+  font-family: var(--font-mono);
+}
+
+.minmax-sep {
+  color: var(--tv-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.minmax-select-col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.minmax-select-col .tv-select {
+  width: 120px;
+  font-size: 11px;
+  padding: 4px 6px;
 }
 
 /* Custom Range Slider */
