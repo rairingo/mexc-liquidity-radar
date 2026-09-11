@@ -191,10 +191,54 @@ async def update_target_pool():
                 pass
 
 
+def matches_recommended_filter(x: Dict[str, Any], relaxed: bool = False) -> bool:
+    """
+    おすすめデフォルトフィルター（仕掛け前夜・嵐の前の静けさ）の合致判定:
+    - 距離: 0.8% 〜 2.5% (relaxed: 0.5% 〜 3.5%)
+    - 騰落率: -5.0% 〜 +5.0% (relaxed: -7.0% 〜 +7.0%)
+    - コスト: $1,500 〜 $8,000 (relaxed: $1,000 〜 $12,000)
+    - 確率: 45 〜 75点 (relaxed: 40 〜 80点)
+    - 破壊力: >= 60倍 (relaxed: >= 50倍)
+    """
+    chg = float(x.get("price_change_24h_pct", 0.0))
+    min_chg, max_chg = (-7.0, 7.0) if relaxed else (-5.0, 5.0)
+    if not (min_chg <= chg <= max_chg):
+        return False
+
+    min_dist, max_dist = (0.5, 3.5) if relaxed else (0.8, 2.5)
+    min_cost, max_cost = (1000.0, 12000.0) if relaxed else (1500.0, 8000.0)
+    min_prob, max_prob = (40.0, 80.0) if relaxed else (45.0, 75.0)
+    min_impact = 50.0 if relaxed else 60.0
+
+    # 1. 下落雪崩側
+    dist_down = float(x.get("distance_to_stop_pct", 999.0))
+    cost_down = float(x.get("avalanche_trigger_cost_usdt", 0.0))
+    prob_down = float(x.get("avalanche_prob_score", 0.0))
+    impact_down = float(x.get("avalanche_impact_score", 0.0))
+    if (min_dist <= dist_down <= max_dist and
+        min_cost <= cost_down <= max_cost and
+        min_prob <= prob_down <= max_prob and
+        impact_down >= min_impact):
+        return True
+
+    # 2. 上昇踏み上げ側
+    dist_up = float(x.get("distance_to_high_pct", 999.0))
+    cost_up = float(x.get("squeeze_trigger_cost_usdt", 0.0))
+    prob_up = float(x.get("squeeze_prob_score", 0.0))
+    impact_up = float(x.get("squeeze_impact_score", 0.0))
+    if (min_dist <= dist_up <= max_dist and
+        min_cost <= cost_up <= max_cost and
+        min_prob <= prob_up <= max_prob and
+        impact_up >= min_impact):
+        return True
+
+    return False
+
+
 async def background_rotation_worker():
     """
     動的優先度付きインターリーブ巡回ワーカー (Dynamic Priority-Weighted Polling Worker):
-    - 総合期待値スコア(Composite EV)上位の注目銘柄（Tier 1）を超高頻度（約15〜20秒周期）で最優先更新。
+    - おすすめデフォルトフィルター（仕掛け前夜・嵐の前の静けさ）を通過した総合期待値スコア上位銘柄（Tier 1）を超高頻度（約15〜20秒周期）で最優先更新。
     - 同時に全体銘柄プール（Tier 2）も順次ラウンドロビンで巡回し、新しい急変・ブレイクアウトチャンスを逃さず発掘。
     - MEXC APIレートリミット（3 req/s）を厳格に遵守。
     """
@@ -220,9 +264,15 @@ async def background_rotation_worker():
 
         ticker_map = {t.get("symbol"): t for t in pool if t.get("symbol")}
 
-        # 現在の解析済みアイテムから総合期待値スコア上位銘柄を動的抽出（Tier 1: 優先監視プール）
+        # おすすめデフォルトフィルター（仕掛け前夜・嵐の前の静けさ）通過銘柄を動的抽出（Tier 1: 優先監視プール）
         analyzed_items = list(GLOBAL_STATE["items_map"].values())
-        analyzed_items.sort(
+
+        # 1. おすすめ基準に完全合致する最良候補
+        strict_candidates = [
+            x for x in analyzed_items
+            if x.get("symbol") in ticker_map and matches_recommended_filter(x, relaxed=False)
+        ]
+        strict_candidates.sort(
             key=lambda x: max(
                 x.get("avalanche_composite_score", 0.0),
                 x.get("squeeze_composite_score", 0.0),
@@ -230,16 +280,28 @@ async def background_rotation_worker():
             ),
             reverse=True
         )
+        priority_symbols = [x["symbol"] for x in strict_candidates[:35]]
 
-        # 総合スコア上位35銘柄（またはスコア40以上）を優先巡回対象とする
-        priority_symbols = [
-            x["symbol"] for x in analyzed_items[:35]
-            if x.get("symbol") in ticker_map and max(
-                x.get("avalanche_composite_score", 0.0),
-                x.get("squeeze_composite_score", 0.0),
-                x.get("opportunity_composite", 0.0)
-            ) >= 40.0
-        ]
+        # 2. 枠（最大35枠）に満たない場合は準おすすめ候補（少し広げた予備軍）でバックフィル
+        if len(priority_symbols) < 35:
+            seen = set(priority_symbols)
+            relaxed_candidates = [
+                x for x in analyzed_items
+                if x.get("symbol") in ticker_map and x.get("symbol") not in seen and matches_recommended_filter(x, relaxed=True)
+            ]
+            relaxed_candidates.sort(
+                key=lambda x: max(
+                    x.get("avalanche_composite_score", 0.0),
+                    x.get("squeeze_composite_score", 0.0),
+                    x.get("opportunity_composite", 0.0)
+                ),
+                reverse=True
+            )
+            for x in relaxed_candidates:
+                priority_symbols.append(x["symbol"])
+                if len(priority_symbols) >= 35:
+                    break
+
         GLOBAL_STATE["priority_symbols"] = priority_symbols
 
         batch = []
