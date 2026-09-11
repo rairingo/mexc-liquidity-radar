@@ -527,7 +527,7 @@ async def pair_detail_page(symbol: str, request: Request):
         "{{PROB_SCORE}}": f"{prob_score}",
         "{{IMPACT_SCORE}}": f"{impact_score}",
         "{{IMPACT_EXTRA_CLASS}}": "high" if impact_score >= 75 else "",
-        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://www.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"),
+        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://futures.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"),
     }
 
     rendered_html = template_html
