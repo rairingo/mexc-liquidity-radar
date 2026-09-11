@@ -348,17 +348,14 @@ async def get_favicon():
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt(request: Request):
     """Google等のクローラー巡回を歓迎し、動的sitemap.xmlへ誘導"""
-    host = request.headers.get("host", "localhost:8000")
-    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
-    return f"User-agent: *\nAllow: /\n\nSitemap: {scheme}://{host}/sitemap.xml\n"
+    base_url = "https://mexc-liquidity-radar.duckdns.org"
+    return f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n"
 
 
 @app.get("/sitemap.xml")
 async def sitemap_xml(request: Request):
     """全監視銘柄（約700〜1,000件）の個別URLを動的生成したXMLサイトマップ"""
-    host = request.headers.get("host", "localhost:8000")
-    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
-    base_url = f"{scheme}://{host}"
+    base_url = "https://mexc-liquidity-radar.duckdns.org"
 
     symbols = [t.get("symbol") for t in GLOBAL_STATE["target_pool"] if t.get("symbol")]
     # キャッシュ済みのシンボルも補完
@@ -469,9 +466,7 @@ async def pair_detail_page(symbol: str, request: Request):
     meta_title = f"{sym_clean} Liquidity Depth & {opp_type_text} Radar | MEXC Terminal"
     meta_desc = f"{sym_clean} orderbook analysis: Current price ${current_price}. {desc_action} Probability Score: {prob_score}/99, Impact: {impact_score}/99."
 
-    host = request.headers.get("host", "localhost:8000")
-    scheme = "https" if "https" in request.headers.get("x-forwarded-proto", "") else "http"
-    canonical_url = f"{scheme}://{host}/pair/{sym_clean}"
+    canonical_url = f"https://mexc-liquidity-radar.duckdns.org/pair/{sym_clean}"
 
     # 置換マッピング
     replacements = {
