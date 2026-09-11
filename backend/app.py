@@ -336,8 +336,8 @@ async def scan_market(
 
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
 
-@app.get("/favicon.ico", include_in_schema=False)
-@app.get("/favicon.svg", include_in_schema=False)
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/favicon.svg", methods=["GET", "HEAD"], include_in_schema=False)
 async def get_favicon():
     fav_path = frontend_dir / "favicon.svg"
     if fav_path.exists():
@@ -345,14 +345,14 @@ async def get_favicon():
     raise HTTPException(status_code=404, detail="Favicon not found")
 
 
-@app.get("/robots.txt", response_class=PlainTextResponse)
+@app.api_route("/robots.txt", methods=["GET", "HEAD"], response_class=PlainTextResponse)
 async def robots_txt(request: Request):
     """Google等のクローラー巡回を歓迎し、動的sitemap.xmlへ誘導"""
     base_url = "https://mexc-liquidity-radar.duckdns.org"
     return f"User-agent: *\nAllow: /\n\nSitemap: {base_url}/sitemap.xml\n"
 
 
-@app.get("/sitemap.xml")
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
 async def sitemap_xml(request: Request):
     """全監視銘柄（約700〜1,000件）の個別URLを動的生成したXMLサイトマップ"""
     base_url = "https://mexc-liquidity-radar.duckdns.org"
