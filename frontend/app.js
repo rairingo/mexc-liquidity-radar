@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS = {
   minDistance: 0.8,
   maxDistance: 2.5,
   minChange: -5.0,
-  maxChange: 3.0,
+  maxChange: 5.0,
   alertMinProb: 70,
   alertMaxCost: 5000,
 };
@@ -65,14 +65,14 @@ let prevCostsMap = new Map();
 // Active Inline TradingView Chart Symbol
 let activeChartSymbol = null;
 
-// Load user settings from localStorage if available (auto-upgrades to v4.5.0 recommended defaults on first run)
+// Load user settings from localStorage if available (auto-upgrades to v4.5.1 recommended defaults on first run)
 try {
-  const ver = localStorage.getItem("mexc_settings_ver_450");
+  const ver = localStorage.getItem("mexc_settings_ver_451");
   const saved = localStorage.getItem("mexc_user_settings_v3");
   if (!ver || !saved) {
     userSettings = { ...DEFAULT_SETTINGS };
     localStorage.setItem("mexc_user_settings_v3", JSON.stringify(userSettings));
-    localStorage.setItem("mexc_settings_ver_450", "true");
+    localStorage.setItem("mexc_settings_ver_451", "true");
   } else {
     userSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
   }
@@ -1245,12 +1245,12 @@ function updateActiveFilterBadge() {
 
 function loadSettings() {
   try {
-    const ver = localStorage.getItem("mexc_settings_ver_450");
+    const ver = localStorage.getItem("mexc_settings_ver_451");
     const saved = localStorage.getItem("mexc_user_settings_v3");
     if (!ver || !saved) {
       userSettings = { ...DEFAULT_SETTINGS };
       saveSettings();
-      localStorage.setItem("mexc_settings_ver_450", "true");
+      localStorage.setItem("mexc_settings_ver_451", "true");
     } else {
       userSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
     }
