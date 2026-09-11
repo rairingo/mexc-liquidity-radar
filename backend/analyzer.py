@@ -312,8 +312,17 @@ class LiquidityAnalyzer:
             # 売り優勢（買い板が50%未満）な度合いを 0.0 〜 1.0 に正規化
             norm_imb_down = max(0.0, min(1.0, (50.0 - bid_ratio) / 50.0))
 
-            # 無次元正規化スコアの加重合成（距離40% + コスト40% + 不均衡20%）
-            weighted_prob_down = (0.40 * norm_dist_down) + (0.40 * norm_cost_down) + (0.20 * norm_imb_down)
+            # 【スプレッド摩擦因子 f_spread】
+            # スプレッドが狭いほど（流動性摩擦が少ないほど）突破がスムーズ。5%に近づくほど失速ペナルティ
+            norm_spread = max(0.2, min(1.0, 1.0 - (spread_pct / 5.0)))
+
+            # 無次元正規化スコアの加重合成（距離35% + コスト35% + 不均衡15% + スプレッド摩擦15%）
+            weighted_prob_down = (
+                (0.35 * norm_dist_down) +
+                (0.35 * norm_cost_down) +
+                (0.15 * norm_imb_down) +
+                (0.15 * norm_spread)
+            )
             avalanche_prob = round(10.0 + (89.0 * weighted_prob_down), 1)
 
             # 破壊力スコア (10-99点): 24h出来高に対して板がどれだけ薄いか（流動性の真空度）
@@ -350,7 +359,14 @@ class LiquidityAnalyzer:
             # 買い優勢（売り板が50%未満）な度合いを 0.0 〜 1.0 に正規化
             norm_imb_up = max(0.0, min(1.0, (50.0 - ask_ratio) / 50.0))
 
-            weighted_prob_up = (0.40 * norm_dist_up) + (0.40 * norm_cost_up) + (0.20 * norm_imb_up)
+            norm_spread = max(0.2, min(1.0, 1.0 - (spread_pct / 5.0)))
+
+            weighted_prob_up = (
+                (0.35 * norm_dist_up) +
+                (0.35 * norm_cost_up) +
+                (0.15 * norm_imb_up) +
+                (0.15 * norm_spread)
+            )
             squeeze_prob = round(10.0 + (89.0 * weighted_prob_up), 1)
 
             vol_ratio_up = round(volume_24h_usdt / cost_up, 1) if cost_up > 0 else 1.0

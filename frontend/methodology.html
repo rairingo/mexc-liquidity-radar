@@ -427,7 +427,7 @@
         ch5Score1Text: "Quantifies the mathematical likelihood of penetration by normalizing trigger capital against 1-minute volume (λ_cost = C_trigger / V_1m), distance against 24h trading range (κ_dist = D% / R_24h), and orderbook imbalance (f_imb) into [0, 1] bounded scalars.",
         ch5Score2Title: "💣 Impact Multiplier Score (S_impact: 10 - 99)",
         ch5Score2Text: "Evaluates the explosive severity of the post-breakout liquidity trap based on the logarithmic Turnover-to-Depth ratio and 24-hour historical price velocity.",
-        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.40 \\cdot \\tilde{f}_{\\text{dist}} + 0.40 \\cdot \\tilde{f}_{\\text{cost}} + 0.20 \\cdot \\tilde{f}_{\\text{imb}} \\right)",
+        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.35 \\cdot \\tilde{f}_{\\text{dist}} + 0.35 \\cdot \\tilde{f}_{\\text{cost}} + 0.15 \\cdot \\tilde{f}_{\\text{imb}} + 0.15 \\cdot \\tilde{f}_{\\text{spread}} \\right)",
         ch5Formula2: "S_{\\text{composite}} = \\sqrt{S_{\\text{prob}} \\times S_{\\text{impact}}} \\quad (\\text{Geometric Mean EV})",
 
         // Chapter 6
@@ -510,7 +510,7 @@
         ch5Score1Text: "貫通必要資本を1分間平均出来高に対する比率（λ_cost = C_trigger / V_1m）、節目距離を日中変動幅に対する比率（κ_dist = D% / R_24h）、板不均衡度を [0, 1] に無次元正規化して加重合成。",
         ch5Score2Title: "💣 破壊力倍率スコア（S_impact: 10〜99）",
         ch5Score2Text: "出来高に対する板の薄さ（対数比率 log10(V_24h / C_trigger)）および日中価格変動速度から、突破時に爆発する流動性真空トラップの凄まじさを評価。",
-        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.40 \\cdot \\tilde{f}_{\\text{dist}} + 0.40 \\cdot \\tilde{f}_{\\text{cost}} + 0.20 \\cdot \\tilde{f}_{\\text{imb}} \\right)",
+        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.35 \\cdot \\tilde{f}_{\\text{dist}} + 0.35 \\cdot \\tilde{f}_{\\text{cost}} + 0.15 \\cdot \\tilde{f}_{\\text{imb}} + 0.15 \\cdot \\tilde{f}_{\\text{spread}} \\right)",
         ch5Formula2: "S_{\\text{composite}} = \\sqrt{S_{\\text{prob}} \\times S_{\\text{impact}}} \\quad (\\text{相乗平均期待値})",
 
         // Chapter 6
