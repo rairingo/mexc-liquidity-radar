@@ -1,5 +1,5 @@
-// MEXC Liquidity Terminal - Frontend Application Logic (v4.2.0 Column Sort & Min-Max Filters)
-const APP_VERSION = "4.2.0";
+// MEXC Liquidity Terminal - Frontend Application Logic (v4.3.0 Watchlist, TV Charts, Wall Thinning & Criteria)
+const APP_VERSION = "4.3.0";
 
 let marketData = [];
 let currentMode = "all"; // 'all', 'avalanche', 'squeeze'
@@ -28,6 +28,23 @@ const DEFAULT_SETTINGS = {
 };
 
 let userSettings = { ...DEFAULT_SETTINGS };
+
+// Watchlist (Pinned Favorites) - Persisted in localStorage
+let watchlist = new Set();
+try {
+  const savedWatchlist = localStorage.getItem("mexc_watchlist");
+  if (savedWatchlist) {
+    watchlist = new Set(JSON.parse(savedWatchlist));
+  }
+} catch (e) {
+  console.debug("Watchlist load error:", e);
+}
+
+// Rapid Wall Thinning (⚡ 急変検知) previous costs cache
+let prevCostsMap = new Map();
+
+// Active Inline TradingView Chart Symbol
+let activeChartSymbol = null;
 
 // Load user settings from localStorage if available
 try {
@@ -71,6 +88,18 @@ const refreshIcon = document.querySelector(".refresh-icon");
 const tabModeAll = document.getElementById("tab-mode-all");
 const tabModeAvalanche = document.getElementById("tab-mode-avalanche");
 const tabModeSqueeze = document.getElementById("tab-mode-squeeze");
+const tabModeWatchlist = document.getElementById("tab-mode-watchlist");
+
+// Concept Accordion Elements
+const btnToggleConcept = document.getElementById("btn-toggle-concept");
+const conceptDrawer = document.getElementById("concept-drawer");
+const conceptChevron = document.getElementById("concept-chevron");
+
+// Export Dropdown Elements
+const btnExportMenu = document.getElementById("btn-export-menu");
+const exportDropdown = document.getElementById("export-dropdown");
+const btnExportCsv = document.getElementById("btn-export-csv");
+const btnExportJson = document.getElementById("btn-export-json");
 
 // Stats Overview Elements
 const statScannedCount = document.getElementById("stat-scanned-count");
@@ -210,12 +239,24 @@ async function fetchScanData(isManual = false) {
   try {
     if (isManual && refreshIcon) refreshIcon.classList.add("rotating");
 
-    const url = `${API_BASE}/api/scan?mode=${currentMode}`;
+    const apiMode = currentMode === "watchlist" ? "all" : currentMode;
+    const url = `${API_BASE}/api/scan?mode=${apiMode}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const data = await res.json();
     marketData = data.items || [];
+
+    // Rapid Wall Thinning Detection (⚡ 急変検知: 前スキャン比でトリガーコストが25%以上急減した銘柄)
+    marketData.forEach((item) => {
+      const prevCost = prevCostsMap.get(item.symbol);
+      if (prevCost && prevCost > 50 && item.opportunity_cost <= prevCost * 0.75) {
+        item.is_wall_thinning = true;
+      } else {
+        item.is_wall_thinning = false;
+      }
+      prevCostsMap.set(item.symbol, item.opportunity_cost);
+    });
 
     // Sound Alert Check based on user configured thresholds
     const currentHighAlertSymbols = new Set(
@@ -322,8 +363,20 @@ function getFilteredAndSortedData() {
     return true;
   });
 
+  // Watchlist Mode Filter
+  if (currentMode === "watchlist") {
+    list = list.filter((item) => watchlist.has(item.symbol));
+  }
+
   // Sorting (Bidirectional ASC / DESC)
   list.sort((a, b) => {
+    // Pin Watchlist items to the very top across all modes
+    const isFavA = watchlist.has(a.symbol) ? 1 : 0;
+    const isFavB = watchlist.has(b.symbol) ? 1 : 0;
+    if (isFavA !== isFavB) {
+      return isFavB - isFavA; // Pinned favorites always appear first
+    }
+
     let key = activeSortKey;
     let valA = a[key];
     let valB = b[key];
@@ -375,10 +428,44 @@ function flashElement(el, isPositive) {
   setTimeout(() => el.classList.remove(cls), 1200);
 }
 
+// Watchlist Toggle
+window.toggleWatchlist = function(symbol, e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (watchlist.has(symbol)) {
+    watchlist.delete(symbol);
+  } else {
+    watchlist.add(symbol);
+  }
+  try {
+    localStorage.setItem("mexc_watchlist", JSON.stringify([...watchlist]));
+  } catch (err) {
+    console.debug("Failed saving watchlist:", err);
+  }
+  renderDashboard();
+};
+
+// Inline TradingView Chart Toggle
+window.toggleInlineChart = function(symbol, e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (activeChartSymbol === symbol) {
+    activeChartSymbol = null;
+  } else {
+    activeChartSymbol = symbol;
+  }
+  renderDashboard();
+};
+
 // Render Screener Table View (TradingView High-Density Grid with Smart DOM Diffing)
 function renderTable(items, totalCount) {
   if (items.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--tv-text-muted); padding: 40px;">${t("noData")}</td></tr>`;
+    const emptyMsg = currentMode === "watchlist" ? t("watchlistEmpty") : t("noData");
+    tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--tv-text-muted); padding: 40px;">${emptyMsg}</td></tr>`;
     renderLoadMore(tableContainer, totalCount);
     return;
   }
@@ -394,6 +481,9 @@ function renderTable(items, totalCount) {
     existingRowsMap.set(tr.getAttribute("data-symbol"), tr);
   });
 
+  // Also remove any existing inline chart rows to avoid stale charts
+  tableBody.querySelectorAll(".inline-chart-row").forEach(r => r.remove());
+
   const activeSymbols = new Set(items.map((x) => x.symbol));
 
   // Remove rows no longer in filtered list
@@ -408,6 +498,8 @@ function renderTable(items, totalCount) {
     const isSqueeze = item.opportunity_side === "squeeze";
     const prob = item.opportunity_prob;
     const impact = item.opportunity_impact;
+    const isFav = watchlist.has(item.symbol);
+    const isChartOpen = activeChartSymbol === item.symbol;
 
     const changeClass = item.price_change_24h_pct >= 0 ? "color-green" : "color-red";
     const changeSign = item.price_change_24h_pct >= 0 ? "+" : "";
@@ -417,6 +509,9 @@ function renderTable(items, totalCount) {
       : `<span class="col-type-tag tag-long">${t("directionLong")}</span>`;
 
     const impactClass = impact >= 75 ? "score-badge badge-impact high" : "score-badge badge-impact";
+
+    const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
+    const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
 
     let tr = existingRowsMap.get(item.symbol);
     if (tr) {
@@ -428,10 +523,14 @@ function renderTable(items, totalCount) {
       tr.setAttribute("data-price", item.current_price);
 
       tr.innerHTML = `
+        <td style="text-align: center;">${starBtn}</td>
         <td class="col-symbol">
-          <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
-            ${item.symbol}
-          </a>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
+              ${item.symbol}
+            </a>
+            ${thinningBadge}
+          </div>
         </td>
         <td>${typeTag}</td>
         <td class="col-mono">$${formatPrice(item.current_price)}</td>
@@ -443,6 +542,9 @@ function renderTable(items, totalCount) {
         <td><span class="${impactClass}">${impact}</span></td>
         <td>
           <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn-chart-toggle ${isChartOpen ? 'active' : ''}" onclick="toggleInlineChart('${item.symbol}', event)" title="Toggle TradingView Chart">
+              <span>📈</span> <span>${isChartOpen ? t('btnInlineChartClose') : t('btnInlineChart')}</span>
+            </button>
             <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
               <span>Share</span>
@@ -462,10 +564,14 @@ function renderTable(items, totalCount) {
       tr.setAttribute("data-symbol", item.symbol);
       tr.setAttribute("data-price", item.current_price);
       tr.innerHTML = `
+        <td style="text-align: center;">${starBtn}</td>
         <td class="col-symbol">
-          <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
-            ${item.symbol}
-          </a>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
+              ${item.symbol}
+            </a>
+            ${thinningBadge}
+          </div>
         </td>
         <td>${typeTag}</td>
         <td class="col-mono">$${formatPrice(item.current_price)}</td>
@@ -477,6 +583,9 @@ function renderTable(items, totalCount) {
         <td><span class="${impactClass}">${impact}</span></td>
         <td>
           <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn-chart-toggle ${isChartOpen ? 'active' : ''}" onclick="toggleInlineChart('${item.symbol}', event)" title="Toggle TradingView Chart">
+              <span>📈</span> <span>${isChartOpen ? t('btnInlineChartClose') : t('btnInlineChart')}</span>
+            </button>
             <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
               <span>Share</span>
@@ -491,6 +600,23 @@ function renderTable(items, totalCount) {
         </td>
       `;
       tableBody.appendChild(tr);
+    }
+
+    // If this row has inline chart active, inject chart container
+    if (isChartOpen) {
+      const chartTr = document.createElement("tr");
+      chartTr.className = "inline-chart-row";
+      chartTr.id = `chart-row-${item.symbol}`;
+      const cleanSym = item.symbol.replace("USDT", "");
+      chartTr.innerHTML = `
+        <td colspan="11">
+          <div class="inline-chart-wrapper">
+            <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_${item.symbol}&symbol=MEXC%3A${cleanSym}USDT&interval=15&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=131722&theme=dark&style=1&timezone=exchange"
+                    style="width: 100%; height: 100%; border: none;"></iframe>
+          </div>
+        </td>
+      `;
+      tableBody.appendChild(chartTr);
     }
   });
 
@@ -533,13 +659,19 @@ function renderCards(items, totalCount) {
 
     const impactBadgeClass = impact >= 75 ? "score-badge badge-impact high" : "score-badge badge-impact";
 
+    const isFav = watchlist.has(item.symbol);
+    const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
+    const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
+
     card.innerHTML = `
       <div>
         <div class="tv-card-header">
-          <div class="card-sym-block">
+          <div class="card-sym-block" style="display: flex; align-items: center; gap: 6px;">
+            ${starBtn}
             <a href="/pair/${item.symbol}" class="tv-symbol-link card-symbol">
               ${item.symbol}
             </a>
+            ${thinningBadge}
             <span class="card-price">$${formatPrice(item.current_price)}</span>
           </div>
           <div class="card-badges-row">
@@ -630,18 +762,136 @@ function setupModeTabs() {
     { btn: tabModeAll, mode: "all" },
     { btn: tabModeAvalanche, mode: "avalanche" },
     { btn: tabModeSqueeze, mode: "squeeze" },
+    { btn: tabModeWatchlist, mode: "watchlist" },
   ];
 
   tabs.forEach(({ btn, mode }) => {
     if (!btn) return;
     btn.addEventListener("click", () => {
-      tabs.forEach((t) => t.btn.classList.remove("active"));
+      tabs.forEach((t) => t.btn && t.btn.classList.remove("active"));
       btn.classList.add("active");
       currentMode = mode;
       displayLimit = 50;
-      fetchScanData(true);
+      if (mode === "watchlist") {
+        renderDashboard();
+      } else {
+        fetchScanData(true);
+      }
     });
   });
+}
+
+// Concept & Universe Screening Criteria Accordion
+function setupConceptAccordion() {
+  if (!btnToggleConcept || !conceptDrawer) return;
+
+  btnToggleConcept.addEventListener("click", () => {
+    const isExpanded = conceptDrawer.style.display === "block";
+    if (isExpanded) {
+      conceptDrawer.style.display = "none";
+      if (conceptChevron) conceptChevron.textContent = "▼";
+      btnToggleConcept.style.borderRadius = "var(--radius-sm)";
+    } else {
+      conceptDrawer.style.display = "block";
+      if (conceptChevron) conceptChevron.textContent = "▲";
+      btnToggleConcept.style.borderRadius = "var(--radius-sm) var(--radius-sm) 0 0";
+    }
+  });
+}
+
+// Data Export (CSV / JSON)
+function setupExportMenu() {
+  if (!btnExportMenu || !exportDropdown) return;
+
+  btnExportMenu.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isShown = exportDropdown.style.display === "block";
+    exportDropdown.style.display = isShown ? "none" : "block";
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!btnExportMenu.contains(e.target) && !exportDropdown.contains(e.target)) {
+      exportDropdown.style.display = "none";
+    }
+  });
+
+  // Export CSV
+  if (btnExportCsv) {
+    btnExportCsv.addEventListener("click", () => {
+      exportDropdown.style.display = "none";
+      const items = getFilteredAndSortedData();
+      if (items.length === 0) {
+        showToast("No data to export.");
+        return;
+      }
+
+      const headers = [
+        "Symbol",
+        "Opportunity_Type",
+        "Current_Price",
+        "Price_Change_24h_Pct",
+        "Trigger_Level",
+        "Distance_Pct",
+        "Trigger_Capital_USDT",
+        "Probability_Score",
+        "Impact_Multiplier",
+        "Volume_24h_USDT",
+        "MEXC_URL"
+      ];
+
+      const rows = items.map(x => [
+        x.symbol,
+        x.opportunity_side,
+        x.current_price,
+        x.price_change_24h_pct,
+        x.opportunity_target,
+        x.opportunity_distance,
+        x.opportunity_cost,
+        x.opportunity_prob,
+        x.opportunity_impact,
+        x.volume_24h_usdt,
+        `https://www.mexc.com/exchange/${x.symbol.replace("USDT", "_USDT")}?inviteCode=3tZTP`
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\r\n");
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+      a.href = url;
+      a.download = `MEXC_Liquidity_Radar_${timestamp}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${items.length} pairs to CSV.`);
+    });
+  }
+
+  // Export JSON
+  if (btnExportJson) {
+    btnExportJson.addEventListener("click", () => {
+      exportDropdown.style.display = "none";
+      const items = getFilteredAndSortedData();
+      if (items.length === 0) {
+        showToast("No data to export.");
+        return;
+      }
+
+      const jsonContent = JSON.stringify(items, null, 2);
+      const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const timestamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 14);
+      a.href = url;
+      a.download = `MEXC_Liquidity_Radar_${timestamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${items.length} pairs to JSON.`);
+    });
+  }
 }
 
 // Table Header Sorting & Sync with Toolbar Pills
@@ -1114,6 +1364,8 @@ document.addEventListener("DOMContentLoaded", () => {
   updateSortHeadersUI();
   setupAudioToggle();
   setupGatewayModal();
+  setupConceptAccordion();
+  setupExportMenu();
 
   // Inject version badge into page
   const versionBadge = document.getElementById("app-version-badge");

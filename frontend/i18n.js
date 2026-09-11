@@ -111,7 +111,30 @@ const TRANSLATIONS = {
     gatewayDesc: "Do you already have an official MEXC trading account?",
     gatewayRegister: "New User: Sign Up (Permanent Fee Discount: 3tZTP)",
     gatewayTrade: "Existing User: Open Trading Chart Directly",
-    gatewayRemember: "Remember my choice and skip this dialog next time"
+    gatewayRemember: "Remember my choice and skip this dialog next time",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 Core Concept & Screening Criteria",
+    conceptCoreTitle: "Core Concept: Exploiting the Liquidity Void",
+    conceptCoreDesc: "In mega-caps (BTC/ETH), moving price 1% requires tens of millions of dollars. On MEXC altcoins, structural fragility exists: a mere hundreds to thousands of dollars in market orders can evaporate thin orderbooks, triggering stop-loss cascades and short squeezes. This radar calculates trigger costs before whales strike.",
+    conceptCriteriaTitle: "Quantitative Universe Screening Rules (~1,000 Pairs)",
+    conceptCrit1: "1. Liquidity Sweet Spot ($20k – $2.5M 24h Vol): Captures the ideal volatility zone where orderbook imbalances explode.",
+    conceptCrit2: "2. Zero Wash Trading: Automatically removes barcode charts with 24h price fluctuation < 3.5%.",
+    conceptCrit3: "3. Clean Spot Only: Completely filters out leveraged tokens (3L/3S/5L/5S) and fiat-pegged stablecoins ($0.96 - $1.04).",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ Watchlist",
+    tabWatchlistDesc: "Your pinned priority pairs (persists locally)",
+    pinWatchlist: "Pin to Watchlist",
+    unpinWatchlist: "Remove from Watchlist",
+    watchlistEmpty: "No pinned pairs yet. Click the ★ icon on any pair to pin it here!",
+    btnInlineChart: "Chart",
+    btnInlineChartClose: "Close Chart",
+    badgeWallThinning: "⚡ Wall Thinning",
+    tooltipWallThinning: "Orderbook barrier thinned sharply since last scan!",
+    btnExport: "Export",
+    btnExportCsv: "Export CSV",
+    btnExportJson: "Export JSON"
   },
   ja: {
     appTitle: "MEXC板監視ターミナル",
@@ -214,7 +237,30 @@ const TRANSLATIONS = {
     gatewayDesc: "MEXCの取引口座をお持ちですか？",
     gatewayRegister: "新規口座開設して取引（招待コード: 3tZTP で手数料永久割引）",
     gatewayTrade: "既存のアカウントで取引画面へ移動",
-    gatewayRemember: "次回からこの確認を表示せず直接取引画面を開く"
+    gatewayRemember: "次回からこの確認を表示せず直接取引画面を開く",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 コンセプト＆監視ユニバース選定基準",
+    conceptCoreTitle: "基本コンセプト：流動性の空白（Liquidity Void）を突く",
+    conceptCoreDesc: "ビットコイン等のメジャー通貨と異なり、MEXCの新興アルトコインは『わずか数百〜数千ドルの成行注文で板が消し飛び、損切り連鎖（雪崩・スクイーズ）が起きる』という構造的脆弱性を持っています。本レーダーは大口（クジラ）が仕掛ける前に、あと何ドルで板が抜けるかをリアルタイムに可視化します。",
+    conceptCriteriaTitle: "監視対象ユニバースの厳格なスクリーニング基準（約1,000銘柄）",
+    conceptCrit1: "1. 出来高のスイートスポット（24H出来高 2万〜250万 USDT）：過疎通貨と板の厚いメジャー通貨を排除し、歪みが最も爆発しやすい中堅銘柄を抽出。",
+    conceptCrit2: "2. バーコードチャート・見せ板の完全排除：24H値幅が3.5%未満の出来高偽装Bot銘柄を自動除外。",
+    conceptCrit3: "3. 現物ピュア資産のみ：レバレッジトークン（3L/3S/5L/5S）およびステーブルコイン（0.96〜1.04ドル）を徹底排除。",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ お気に入り",
+    tabWatchlistDesc: "ピン留めした重点監視ペア（端末に自動保存）",
+    pinWatchlist: "お気に入りに追加",
+    unpinWatchlist: "お気に入りから解除",
+    watchlistEmpty: "ピン留めされた銘柄がありません。行の「★」を押すとここに固定されます！",
+    btnInlineChart: "チャート",
+    btnInlineChartClose: "チャートを閉じる",
+    badgeWallThinning: "⚡ 板急減",
+    tooltipWallThinning: "前回のスキャンと比べて板の防壁が急激に薄くなっています！",
+    btnExport: "エクスポート",
+    btnExportCsv: "CSVで出力",
+    btnExportJson: "JSONで出力"
   },
   zh: {
     appTitle: "MEXC 深度清算终端",
@@ -317,7 +363,30 @@ const TRANSLATIONS = {
     gatewayDesc: "您已拥有 MEXC 官方交易账户吗？",
     gatewayRegister: "新用户：立即注册（永久手续费折扣：3tZTP）",
     gatewayTrade: "已有账户：直接前往交易图表",
-    gatewayRemember: "记住我的选择，下次不再显示此提示"
+    gatewayRemember: "记住我的选择，下次不再显示此提示",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 核心理念与选币监控标准",
+    conceptCoreTitle: "核心理念：捕捉流动性真空（Liquidity Void）",
+    conceptCoreDesc: "与比特币等主流币不同，MEXC现货山寨币存在显著的结构性脆弱：仅需数百至数千美元的市场订单即可击穿盘口，引爆多头清算雪崩或空头扎空。本雷达在大户出手前，实时量化计算击穿所需资本。",
+    conceptCriteriaTitle: "量化监控选币池筛选标准（约1,000个币对）",
+    conceptCrit1: "1. 黄金流动性区间（24H成交额 2万至250万 USDT）：剔除死币与大盘币，锁定波动与盘口失衡最剧烈的黑马标的。",
+    conceptCrit2: "2. 剔除虚假刷量条形码行情：自动排除24H振幅低于3.5%的机器人虚假交易币种。",
+    conceptCrit3: "3. 纯现货资产：彻底排除杠杆代币（3L/3S/5L/5S）以及锚定稳定币（0.96 - 1.04美元）。",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ 关注列表",
+    tabWatchlistDesc: "置顶重点监控币对（本地自动保存）",
+    pinWatchlist: "置顶到关注列表",
+    unpinWatchlist: "从关注列表移除",
+    watchlistEmpty: "暂无关注币对。点击列表中的★图标即可置顶！",
+    btnInlineChart: "图表",
+    btnInlineChartClose: "收起图表",
+    badgeWallThinning: "⚡ 挂单骤减",
+    tooltipWallThinning: "相比上次扫描，盘口防线资金大幅减少！",
+    btnExport: "导出数据",
+    btnExportCsv: "导出为 CSV",
+    btnExportJson: "导出为 JSON"
   },
   ko: {
     appTitle: "MEXC 오더북 유동성 터미널",
@@ -420,7 +489,30 @@ const TRANSLATIONS = {
     gatewayDesc: "공식 MEXC 거래 계정을 이미 보유하고 계신가요?",
     gatewayRegister: "신규 가입: 회원가입 (영구 수수료 할인: 3tZTP)",
     gatewayTrade: "기존 계정으로 거래 화면 이동",
-    gatewayRemember: "다음에는 이 안내를 건너뛰고 바로 거래 화면으로 이동"
+    gatewayRemember: "다음에는 이 안내를 건너뛰고 바로 거래 화면으로 이동",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 핵심 컨셉 및 종목 선정 기준",
+    conceptCoreTitle: "핵심 개념: 유동성 공백(Liquidity Void) 공략",
+    conceptCoreDesc: "비트코인 등 대형 메이저 코인과 달리, MEXC 신흥 알트코인은 수백~수천 달러의 시장가 주문만으로도 얇은 호가창이 증발하며 연쇄 스탑로스 폭락이나 숏스퀴즈가 폭발하는 구조적 취약성을 지닙니다. 본 레이더는 세력이 진입하기 전 돌파 필요 자금을 실시간으로 포착합니다.",
+    conceptCriteriaTitle: "모니터링 유니버스 퀀트 필터링 기준 (약 1,000개 페어)",
+    conceptCrit1: "1. 유동성 스위트스팟 (24H 거래대금 2만~250만 USDT): 거래 불가능한 유령 코인과 메이저 코인을 배제하고 변동성 왜곡이 극대화되는 구간 선정.",
+    conceptCrit2: "2. 봇 자전거래 바코드 차트 영구 퇴출: 24H 변동폭 3.5% 미만의 가짜 거래량 코인 자동 필터링.",
+    conceptCrit3: "3. 순수 현물 자산만 포함: 레버리지 토큰(3L/3S/5L/5S) 및 스테이블코인(0.96~1.04$) 원천 배제.",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ 관심 종목",
+    tabWatchlistDesc: "상단 고정된 우선 모니터링 코인 (로컬 자동 저장)",
+    pinWatchlist: "관심 종목 고정",
+    unpinWatchlist: "관심 종목 해제",
+    watchlistEmpty: "고정된 코인이 없습니다. 행의 ★ 아이콘을 눌러 상단에 고정하세요!",
+    btnInlineChart: "차트",
+    btnInlineChartClose: "차트 닫기",
+    badgeWallThinning: "⚡ 호가 급감",
+    tooltipWallThinning: "이전 스캔 대비 호가창 방어벽이 급격히 얇아졌습니다!",
+    btnExport: "내보내기",
+    btnExportCsv: "CSV 내보내기",
+    btnExportJson: "JSON 내보내기"
   },
   es: {
     appTitle: "Terminal de Liquidez MEXC",
@@ -523,7 +615,30 @@ const TRANSLATIONS = {
     gatewayDesc: "¿Ya tienes una cuenta oficial de trading en MEXC?",
     gatewayRegister: "Nuevo usuario: Regístrate (Descuento permanente de comisiones: 3tZTP)",
     gatewayTrade: "Usuario existente: Ir directamente al gráfico",
-    gatewayRemember: "Recordar mi elección y omitir este diálogo la próxima vez"
+    gatewayRemember: "Recordar mi elección y omitir este diálogo la próxima vez",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 Concepto Central y Criterios de Selección",
+    conceptCoreTitle: "Concepto Clave: Explotar el Vacío de Liquidez",
+    conceptCoreDesc: "A diferencia de BTC o ETH, en las altcoins de MEXC existe una fragilidad estructural: unos pocos cientos o miles de dólares en órdenes a mercado pueden evaporar libros delgados, desatando cascadas de stop-loss o short squeezes. Este radar calcula el costo de disparo antes de que actúen las ballenas.",
+    conceptCriteriaTitle: "Reglas Cuantitativas de Filtrado del Universo (~1,000 Pares)",
+    conceptCrit1: "1. Zona Óptima de Liquidez (Volumen 24h $20k – $2.5M): Filtra monedas fantasma y mega-caps, capturando anomalías de alta volatilidad.",
+    conceptCrit2: "2. Cero Falso Volumen: Excluye gráficos planos o de código de barras con fluctuación 24h < 3.5%.",
+    conceptCrit3: "3. Solo Spot Puro: Filtra tokens apalancados (3L/3S/5L/5S) y monedas estables vinculadas al dólar ($0.96 - $1.04).",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ Favoritos",
+    tabWatchlistDesc: "Tus pares prioritarios fijados (guardados localmente)",
+    pinWatchlist: "Fijar a favoritos",
+    unpinWatchlist: "Quitar de favoritos",
+    watchlistEmpty: "No hay pares fijados. Haz clic en el icono ★ para fijar aquí.",
+    btnInlineChart: "Gráfico",
+    btnInlineChartClose: "Cerrar gráfico",
+    badgeWallThinning: "⚡ Muro Evaporado",
+    tooltipWallThinning: "¡El muro del libro de órdenes se adelgazó bruscamente desde el último escaneo!",
+    btnExport: "Exportar",
+    btnExportCsv: "Exportar CSV",
+    btnExportJson: "Exportar JSON"
   },
   vi: {
     appTitle: "Terminal Thanh Khoản MEXC",
@@ -626,7 +741,30 @@ const TRANSLATIONS = {
     gatewayDesc: "Bạn đã có tài khoản giao dịch chính thức trên MEXC chưa?",
     gatewayRegister: "Người dùng mới: Đăng ký ngay (Giảm phí vĩnh viễn: 3tZTP)",
     gatewayTrade: "Người dùng cũ: Đi thẳng đến biểu đồ giao dịch",
-    gatewayRemember: "Nhớ lựa chọn của tôi và bỏ qua hộp thoại này lần sau"
+    gatewayRemember: "Nhớ lựa chọn của tôi và bỏ qua hộp thoại này lần sau",
+
+    // Concept & Universe Criteria
+    conceptToggleTitle: "📘 Khái Niệm Cốt Lõi & Tiêu Chuẩn Chọn Lọc",
+    conceptCoreTitle: "Ý Tưởng Cốt Lõi: Tận Dụng Khoảng Trống Thanh Khoản",
+    conceptCoreDesc: "Khác với BTC/ETH, các altcoin trên MEXC có cấu trúc rất mỏng: chỉ cần vài trăm đến vài nghìn USD lệnh thị trường là có thể quét sạch sổ lệnh, kích hoạt cắt lỗ liên hoàn hoặc short squeeze. Radar này lượng hóa vốn kích hoạt trước khi cá voi hành động.",
+    conceptCriteriaTitle: "Bộ Lọc Định Lượng Chọn Vũ Trụ Theo Dõi (~1,000 Cặp)",
+    conceptCrit1: "1. Vùng Thanh Khoản Lý Tưởng (Khối lượng 24h $20k – $2.5M): Loại bỏ coin rác bất động và coin vốn hóa lớn, nắm bắt biến động nhạy bén nhất.",
+    conceptCrit2: "2. Loại Bỏ Khối Lượng Ảo: Tự động loại bỏ biểu đồ mã vạch có biên độ 24h < 3.5%.",
+    conceptCrit3: "3. Chỉ Tài Sản Spot Thuần: Loại bỏ hoàn toàn token đòn bẩy (3L/3S/5L/5S) và stablecoin neo giá ($0.96 - $1.04).",
+
+    // Watchlist & Chart & Badges & Export
+    tabWatchlist: "⭐ Yêu Thích",
+    tabWatchlistDesc: "Các cặp ưu tiên được ghim lên đầu (tự động lưu trên máy)",
+    pinWatchlist: "Ghim vào danh sách yêu thích",
+    unpinWatchlist: "Bỏ ghim khỏi danh sách",
+    watchlistEmpty: "Chưa có cặp nào được ghim. Nhấn vào biểu tượng ★ ở bất kỳ hàng nào để ghim tại đây!",
+    btnInlineChart: "Biểu đồ",
+    btnInlineChartClose: "Đóng biểu đồ",
+    badgeWallThinning: "⚡ Tường Mỏng Đi",
+    tooltipWallThinning: "Tường cản sổ lệnh đã mỏng đi nhanh chóng so với lần quét trước!",
+    btnExport: "Xuất dữ liệu",
+    btnExportCsv: "Xuất file CSV",
+    btnExportJson: "Xuất file JSON"
   }
 };
 
