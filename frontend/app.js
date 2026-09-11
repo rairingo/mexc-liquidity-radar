@@ -1,5 +1,5 @@
-// MEXC Liquidity Terminal - Frontend Application Logic (v4.1 Gateway Modal Edition)
-const APP_VERSION = "4.1.2";
+// MEXC Liquidity Terminal - Frontend Application Logic (v4.1.3 Gateway Modal Fix)
+const APP_VERSION = "4.1.3";
 
 let marketData = [];
 let currentMode = "all"; // 'all', 'avalanche', 'squeeze'
