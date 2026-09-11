@@ -56,6 +56,7 @@ body.tv-theme {
   font-size: 13px;
   line-height: 1.4;
   min-height: 100vh;
+  padding-bottom: 80px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -825,7 +826,7 @@ body.tv-theme {
   width: 100vw;
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.65);
-  z-index: 1000;
+  z-index: 200000;
   display: flex;
   align-items: center;
   justify-content: center;
