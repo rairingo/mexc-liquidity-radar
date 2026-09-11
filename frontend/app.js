@@ -526,6 +526,7 @@ function renderTable(items, totalCount) {
 
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
     const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
+    const priorityBadge = item.is_priority ? `<span class="badge-priority" title="${t('tooltipPriority')}">⚡ ${t('badgePriority')}</span>` : '';
 
     const rowHtml = `
         <td style="text-align: center;">${starBtn}</td>
@@ -534,6 +535,7 @@ function renderTable(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
               ${item.symbol}
             </a>
+            ${priorityBadge}
             ${thinningBadge}
           </div>
         </td>
@@ -667,6 +669,7 @@ function renderCards(items, totalCount) {
     const isFav = watchlist.has(item.symbol);
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
     const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
+    const priorityBadge = item.is_priority ? `<span class="badge-priority" title="${t('tooltipPriority')}">⚡ ${t('badgePriority')}</span>` : '';
 
     const cardHtml = `
       <div>
@@ -676,6 +679,7 @@ function renderCards(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-symbol-link" style="font-size: 15px;" title="${item.symbol} Orderbook Deep Dive">
               ${item.symbol}
             </a>
+            ${priorityBadge}
             ${thinningBadge}
           </div>
           <div style="text-align: right;">

@@ -193,11 +193,16 @@ async def update_target_pool():
 
 async def background_rotation_worker():
     """
-    バックグラウンドで全対象銘柄を8銘柄ずつ安全なペースで巡回し続けるワーカー
-    APIレートリミットを絶対に踏まず、ユーザーのリクエストには即時0msでキャッシュ応答する
+    動的優先度付きインターリーブ巡回ワーカー (Dynamic Priority-Weighted Polling Worker):
+    - 総合期待値スコア(Composite EV)上位の注目銘柄（Tier 1）を超高頻度（約15〜20秒周期）で最優先更新。
+    - 同時に全体銘柄プール（Tier 2）も順次ラウンドロビンで巡回し、新しい急変・ブレイクアウトチャンスを逃さず発掘。
+    - MEXC APIレートリミット（3 req/s）を厳格に遵守。
     """
-    logger.info("Background rotation worker started.")
+    logger.info("Dynamic Priority Background Rotation Worker started.")
     await update_target_pool()
+
+    priority_cursor = 0
+    general_cursor = 0
 
     while GLOBAL_STATE["is_running"]:
         # グローバルバックオフ（429検知後のクールダウン）待機
@@ -209,34 +214,71 @@ async def background_rotation_worker():
 
         pool = list(GLOBAL_STATE["target_pool"])
         if not pool:
-            await asyncio.sleep(10.0)
+            await asyncio.sleep(5.0)
             await update_target_pool()
             continue
 
-        # 8銘柄ずつチャンク分割してローテーション
-        for i in range(0, len(pool), BATCH_SIZE):
-            if not GLOBAL_STATE["is_running"]:
-                break
+        ticker_map = {t.get("symbol"): t for t in pool if t.get("symbol")}
 
-            # バッチ実行前にもバックオフチェック
-            now = time.time()
-            if GLOBAL_STATE.get("backoff_until", 0.0) > now:
-                wait_time = GLOBAL_STATE["backoff_until"] - now
-                logger.warning(f"Batch pause for backoff: {wait_time:.1f}s")
-                await asyncio.sleep(wait_time)
+        # 現在の解析済みアイテムから総合期待値スコア上位銘柄を動的抽出（Tier 1: 優先監視プール）
+        analyzed_items = list(GLOBAL_STATE["items_map"].values())
+        analyzed_items.sort(
+            key=lambda x: max(
+                x.get("avalanche_composite_score", 0.0),
+                x.get("squeeze_composite_score", 0.0),
+                x.get("opportunity_composite", 0.0)
+            ),
+            reverse=True
+        )
 
-            batch = pool[i : i + BATCH_SIZE]
-            tasks = [analyze_single_symbol(item) for item in batch]
-            results = await asyncio.gather(*tasks)
+        # 総合スコア上位35銘柄（またはスコア40以上）を優先巡回対象とする
+        priority_symbols = [
+            x["symbol"] for x in analyzed_items[:35]
+            if x.get("symbol") in ticker_map and max(
+                x.get("avalanche_composite_score", 0.0),
+                x.get("squeeze_composite_score", 0.0),
+                x.get("opportunity_composite", 0.0)
+            ) >= 40.0
+        ]
+        GLOBAL_STATE["priority_symbols"] = priority_symbols
 
-            for res in results:
-                if res:
-                    GLOBAL_STATE["items_map"][res["symbol"]] = res
+        batch = []
+        batch_syms = set()
 
-            GLOBAL_STATE["last_batch_sync"] = time.time()
-            await asyncio.sleep(BATCH_SLEEP_SECONDS)
+        # 1. 優先枠（上位注目銘柄から2銘柄を順次抽出して優先更新）
+        if priority_symbols:
+            for _ in range(min(2, len(priority_symbols))):
+                sym = priority_symbols[priority_cursor % len(priority_symbols)]
+                priority_cursor += 1
+                if sym in ticker_map and sym not in batch_syms:
+                    batch.append(ticker_map[sym])
+                    batch_syms.add(sym)
 
-        # 1周巡回したら、5分おきにティッカー全体の最新ランキングを再同期
+        # 2. 全体ディスカバリー枠（残りのスロットを全体プールから順番に取得して新チャンス探索）
+        needed = BATCH_SIZE - len(batch)
+        for _ in range(needed):
+            item = pool[general_cursor % len(pool)]
+            general_cursor += 1
+            sym = item.get("symbol")
+            if sym and sym not in batch_syms:
+                batch.append(item)
+                batch_syms.add(sym)
+
+        if not batch:
+            await asyncio.sleep(0.5)
+            continue
+
+        tasks = [analyze_single_symbol(item) for item in batch]
+        results = await asyncio.gather(*tasks)
+
+        for res in results:
+            if res:
+                GLOBAL_STATE["items_map"][res["symbol"]] = res
+
+        GLOBAL_STATE["last_batch_sync"] = time.time()
+        await asyncio.sleep(BATCH_SLEEP_SECONDS)
+
+        # 5分ごとにティッカー全体の最新ランキングを再同期
         if time.time() - GLOBAL_STATE["last_ticker_sync"] > 300.0:
             await update_target_pool()
 
@@ -351,6 +393,7 @@ async def scan_market(
         enriched["opportunity_distance"] = round(opp_dist, 2)
         enriched["opportunity_target"] = opp_target
         enriched["opportunity_vol_ratio"] = opp_vol_ratio
+        enriched["is_priority"] = sym in set(GLOBAL_STATE.get("priority_symbols", []))
         processed_items.append(enriched)
 
     # モードによる絞り込み
@@ -374,6 +417,7 @@ async def scan_market(
     return {
         "count": len(items),
         "total_monitored": len(GLOBAL_STATE["target_pool"]),
+        "priority_monitored": len(GLOBAL_STATE.get("priority_symbols", [])),
         "updated_at": GLOBAL_STATE["last_batch_sync"] or time.time(),
         "mode": mode,
         "sort_by": sort_by,

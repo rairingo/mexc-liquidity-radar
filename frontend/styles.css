@@ -1200,6 +1200,28 @@ body.tv-theme {
   cursor: help;
 }
 
+@keyframes pulsePriority {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.6); }
+  70% { box-shadow: 0 0 0 5px rgba(56, 189, 248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+.badge-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  animation: pulsePriority 2.5s infinite;
+  margin-left: 6px;
+  cursor: help;
+}
+
 /* ==========================================================================
    TradingView Inline Mini Chart Accordion
    ========================================================================== */
