@@ -336,6 +336,15 @@ async def scan_market(
 
 frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
 
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.svg", include_in_schema=False)
+async def get_favicon():
+    fav_path = frontend_dir / "favicon.svg"
+    if fav_path.exists():
+        return FileResponse(fav_path, media_type="image/svg+xml")
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+
 @app.get("/robots.txt", response_class=PlainTextResponse)
 async def robots_txt(request: Request):
     """Google等のクローラー巡回を歓迎し、動的sitemap.xmlへ誘導"""
