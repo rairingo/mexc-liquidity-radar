@@ -486,14 +486,21 @@ function renderTable(items, totalCount) {
     existingRowsMap.set(tr.getAttribute("data-symbol"), tr);
   });
 
-  // Also remove any existing inline chart rows to avoid stale charts
-  tableBody.querySelectorAll(".inline-chart-row").forEach(r => r.remove());
+  // 現在アクティブなシンボル以外の不要なチャート行のみを安全に削除（表示中のiframeは絶対に破棄しない）
+  tableBody.querySelectorAll(".inline-chart-row").forEach((r) => {
+    if (!activeChartSymbol || r.id !== `chart-row-${activeChartSymbol}`) {
+      r.remove();
+    }
+  });
 
   const activeSymbols = new Set(items.map((x) => x.symbol));
 
   // Remove rows no longer in filtered list
   existingRowsMap.forEach((tr, sym) => {
     if (!activeSymbols.has(sym)) {
+      // もしこの銘柄のチャートが開いていたら一緒にクリーンアップ
+      const cRow = document.getElementById(`chart-row-${sym}`);
+      if (cRow) cRow.remove();
       tr.remove();
       existingRowsMap.delete(sym);
     }
@@ -520,6 +527,44 @@ function renderTable(items, totalCount) {
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
     const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
 
+    const rowHtml = `
+        <td style="text-align: center;">${starBtn}</td>
+        <td class="col-symbol">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
+              ${item.symbol}
+            </a>
+            ${thinningBadge}
+          </div>
+        </td>
+        <td>${typeTag}</td>
+        <td class="col-mono">$${formatPrice(item.current_price)}</td>
+        <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
+        <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
+        <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
+        <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
+        <td><span class="${compositeClass}" title="${t('compositeDesc')}">${composite}</span></td>
+        <td><span class="score-badge badge-prob">${prob}</span></td>
+        <td><span class="${impactClass}">${impact}</span></td>
+        <td>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn-chart-toggle ${isChartOpen ? 'active' : ''}" onclick="toggleInlineChart('${item.symbol}', event)" title="Toggle TradingView Chart">
+              <span>📈</span> <span>${isChartOpen ? t('btnInlineChartClose') : t('btnInlineChart')}</span>
+            </button>
+            <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              <span>Share</span>
+            </button>
+            <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
+              Details
+            </a>
+            <a href="${getMexcTradeUrl(item)}" class="tv-table-link mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" title="Trade on MEXC">
+              MEXC ↗
+            </a>
+          </div>
+        </td>
+    `;
+
     let tr = existingRowsMap.get(item.symbol);
     if (tr) {
       // Check for price change & flash
@@ -529,103 +574,39 @@ function renderTable(items, totalCount) {
       }
       tr.setAttribute("data-price", item.current_price);
 
-      tr.innerHTML = `
-        <td style="text-align: center;">${starBtn}</td>
-        <td class="col-symbol">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
-              ${item.symbol}
-            </a>
-            ${thinningBadge}
-          </div>
-        </td>
-        <td>${typeTag}</td>
-        <td class="col-mono">$${formatPrice(item.current_price)}</td>
-        <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
-        <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
-        <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
-        <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
-        <td><span class="${compositeClass}" title="${t('compositeDesc')}">${composite}</span></td>
-        <td><span class="score-badge badge-prob">${prob}</span></td>
-        <td><span class="${impactClass}">${impact}</span></td>
-        <td>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn-chart-toggle ${isChartOpen ? 'active' : ''}" onclick="toggleInlineChart('${item.symbol}', event)" title="Toggle TradingView Chart">
-              <span>📈</span> <span>${isChartOpen ? t('btnInlineChartClose') : t('btnInlineChart')}</span>
-            </button>
-            <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-              <span>Share</span>
-            </button>
-            <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
-              Details
-            </a>
-            <a href="${getMexcTradeUrl(item)}" class="tv-table-link mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" title="Trade on MEXC">
-              MEXC ↗
-            </a>
-          </div>
-        </td>
-      `;
+      // 無駄なDOM書き換えを防止（HTMLが同じならinnerHTMLを変更しない）
+      if (tr.innerHTML !== rowHtml) {
+        tr.innerHTML = rowHtml;
+      }
       tableBody.appendChild(tr);
     } else {
       tr = document.createElement("tr");
       tr.setAttribute("data-symbol", item.symbol);
       tr.setAttribute("data-price", item.current_price);
-      tr.innerHTML = `
-        <td style="text-align: center;">${starBtn}</td>
-        <td class="col-symbol">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <a href="/pair/${item.symbol}" class="tv-symbol-link" title="${item.symbol} Orderbook Deep Dive">
-              ${item.symbol}
-            </a>
-            ${thinningBadge}
-          </div>
-        </td>
-        <td>${typeTag}</td>
-        <td class="col-mono">$${formatPrice(item.current_price)}</td>
-        <td class="col-mono ${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</td>
-        <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
-        <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
-        <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
-        <td><span class="${compositeClass}" title="${t('compositeDesc')}">${composite}</span></td>
-        <td><span class="score-badge badge-prob">${prob}</span></td>
-        <td><span class="${impactClass}">${impact}</span></td>
-        <td>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn-chart-toggle ${isChartOpen ? 'active' : ''}" onclick="toggleInlineChart('${item.symbol}', event)" title="Toggle TradingView Chart">
-              <span>📈</span> <span>${isChartOpen ? t('btnInlineChartClose') : t('btnInlineChart')}</span>
-            </button>
-            <button class="tv-table-link" onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" title="Copy Alert for Discord/Telegram" style="cursor: pointer; background: transparent; color: #38bdf8; border-color: rgba(56,189,248,0.3); display: flex; align-items: center; gap: 4px;">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-              <span>Share</span>
-            </button>
-            <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
-              Details
-            </a>
-            <a href="${getMexcTradeUrl(item)}" class="tv-table-link mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" title="Trade on MEXC">
-              MEXC ↗
-            </a>
-          </div>
-        </td>
-      `;
+      tr.innerHTML = rowHtml;
       tableBody.appendChild(tr);
     }
 
-    // If this row has inline chart active, inject chart container
+    // チャート展開の永続化処理: 既に存在するiframeは絶対に再読み込みさせず再利用
     if (isChartOpen) {
-      const chartTr = document.createElement("tr");
-      chartTr.className = "inline-chart-row";
-      chartTr.id = `chart-row-${item.symbol}`;
-      const cleanSym = item.symbol.replace("USDT", "");
-      chartTr.innerHTML = `
-        <td colspan="12">
-          <div class="inline-chart-wrapper">
-            <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_${item.symbol}&symbol=MEXC%3A${cleanSym}USDT&interval=15&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=131722&theme=dark&style=1&timezone=exchange"
-                    style="width: 100%; height: 100%; border: none;"></iframe>
-          </div>
-        </td>
-      `;
-      tableBody.appendChild(chartTr);
+      let chartTr = document.getElementById(`chart-row-${item.symbol}`);
+      if (!chartTr) {
+        // 初回のみ iframe を生成
+        chartTr = document.createElement("tr");
+        chartTr.className = "inline-chart-row";
+        chartTr.id = `chart-row-${item.symbol}`;
+        const cleanSym = item.symbol.replace("USDT", "");
+        chartTr.innerHTML = `
+          <td colspan="12">
+            <div class="inline-chart-wrapper">
+              <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_${item.symbol}&symbol=MEXC%3A${cleanSym}USDT&interval=15&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=131722&theme=dark&style=1&timezone=exchange"
+                      style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+          </td>
+        `;
+      }
+      // 常に該当行の直下に保持・配置（DOM順序が動いても既存iframeはリロードされない）
+      tr.after(chartTr);
     }
   });
 
@@ -634,19 +615,32 @@ function renderTable(items, totalCount) {
   attachGatewayListeners();
 }
 
-// Render Card Grid View
+// Render Card Grid View (Smooth Zero-Flicker Diffing)
 function renderCards(items, totalCount) {
-  cardsContainer.innerHTML = "";
-
   if (items.length === 0) {
     cardsContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--tv-text-muted); padding: 40px;">${t("noData")}</div>`;
     return;
   }
 
-  items.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "tv-card";
+  // プレースホルダーがあれば削除
+  if (cardsContainer.querySelector("div[style*='grid-column']")) {
+    cardsContainer.innerHTML = "";
+  }
 
+  const existingCardsMap = new Map();
+  cardsContainer.querySelectorAll(".tv-card[data-symbol]").forEach((card) => {
+    existingCardsMap.set(card.getAttribute("data-symbol"), card);
+  });
+
+  const activeSymbols = new Set(items.map((x) => x.symbol));
+  existingCardsMap.forEach((card, sym) => {
+    if (!activeSymbols.has(sym)) {
+      card.remove();
+      existingCardsMap.delete(sym);
+    }
+  });
+
+  items.forEach((item) => {
     const isSqueeze = item.opportunity_side === "squeeze";
     const prob = item.opportunity_prob;
     const impact = item.opportunity_impact;
@@ -674,18 +668,24 @@ function renderCards(items, totalCount) {
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
     const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
 
-    card.innerHTML = `
+    const cardHtml = `
       <div>
         <div class="tv-card-header">
-          <div class="card-sym-block" style="display: flex; align-items: center; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
             ${starBtn}
-            <a href="/pair/${item.symbol}" class="tv-symbol-link card-symbol">
+            <a href="/pair/${item.symbol}" class="tv-symbol-link" style="font-size: 15px;" title="${item.symbol} Orderbook Deep Dive">
               ${item.symbol}
             </a>
             ${thinningBadge}
-            <span class="card-price">$${formatPrice(item.current_price)}</span>
           </div>
-          <div class="card-badges-row">
+          <div style="text-align: right;">
+            <div style="font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--tv-text-bright);">$${formatPrice(item.current_price)}</div>
+            <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 600;" class="${changeClass}">${changeSign}${item.price_change_24h_pct.toFixed(2)}%</div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="display: flex; gap: 4px;">
             <span class="${compositeBadgeClass}" title="${t('compositeDesc')}">${t('compositeScore')}: ${composite}</span>
             <span class="score-badge badge-prob" title="${t('probScore')}">${t('probScore')}: ${prob}</span>
             <span class="${impactBadgeClass}" title="${t('impactScore')}">${t('impactScore')}: ${impact}</span>
@@ -736,7 +736,19 @@ function renderCards(items, totalCount) {
       </div>
     `;
 
-    cardsContainer.appendChild(card);
+    let card = existingCardsMap.get(item.symbol);
+    if (card) {
+      if (card.innerHTML !== cardHtml) {
+        card.innerHTML = cardHtml;
+      }
+      cardsContainer.appendChild(card);
+    } else {
+      card = document.createElement("div");
+      card.className = "tv-card";
+      card.setAttribute("data-symbol", item.symbol);
+      card.innerHTML = cardHtml;
+      cardsContainer.appendChild(card);
+    }
   });
 
   // Load more handling for cards
