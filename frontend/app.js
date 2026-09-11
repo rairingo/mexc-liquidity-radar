@@ -1078,6 +1078,9 @@ function setupSettingsModal() {
   // Open / Close
   if (btnOpenSettings) {
     btnOpenSettings.addEventListener("click", () => {
+      if (typeof applyStaticTranslations === "function") {
+        applyStaticTranslations();
+      }
       updateSettingsModalUI();
       settingsModal.classList.remove("hidden");
     });
@@ -1195,6 +1198,27 @@ function setupSettingsModal() {
   }
 }
 
+function setSelectOptionValue(selectEl, targetValue) {
+  if (!selectEl) return;
+  const targetStr = String(targetValue);
+  for (let i = 0; i < selectEl.options.length; i++) {
+    if (selectEl.options[i].value === targetStr) {
+      selectEl.selectedIndex = i;
+      return;
+    }
+  }
+  const numTarget = parseFloat(targetValue);
+  if (!isNaN(numTarget)) {
+    for (let i = 0; i < selectEl.options.length; i++) {
+      if (Math.abs(parseFloat(selectEl.options[i].value) - numTarget) < 0.0001) {
+        selectEl.selectedIndex = i;
+        return;
+      }
+    }
+  }
+  selectEl.value = targetValue;
+}
+
 function updateSettingsModalUI() {
   if (cfgMinProb) cfgMinProb.value = userSettings.minProb ?? 0;
   if (cfgMaxProb) cfgMaxProb.value = userSettings.maxProb ?? 99;
@@ -1202,21 +1226,21 @@ function updateSettingsModalUI() {
   if (cfgMinImpact) cfgMinImpact.value = userSettings.minImpact ?? 0;
   if (cfgMaxImpact) cfgMaxImpact.value = userSettings.maxImpact ?? 99;
 
-  if (cfgMinCost) cfgMinCost.value = userSettings.minCost ?? 0;
-  if (cfgMaxCost) cfgMaxCost.value = userSettings.maxCost ?? 999999999;
+  setSelectOptionValue(cfgMinCost, userSettings.minCost ?? 0);
+  setSelectOptionValue(cfgMaxCost, userSettings.maxCost ?? 999999999);
 
-  if (cfgMinDistance) cfgMinDistance.value = userSettings.minDistance ?? 0.0;
-  if (cfgMaxDistance) cfgMaxDistance.value = userSettings.maxDistance ?? 999;
+  setSelectOptionValue(cfgMinDistance, userSettings.minDistance ?? 0.0);
+  setSelectOptionValue(cfgMaxDistance, userSettings.maxDistance ?? 999);
 
-  if (cfgMinVol) cfgMinVol.value = userSettings.minVol ?? 0;
-  if (cfgMaxVol) cfgMaxVol.value = userSettings.maxVol ?? 999999999999;
+  setSelectOptionValue(cfgMinVol, userSettings.minVol ?? 0);
+  setSelectOptionValue(cfgMaxVol, userSettings.maxVol ?? 999999999999);
 
-  if (cfgMinChange) cfgMinChange.value = userSettings.minChange ?? -999;
-  if (cfgMaxChange) cfgMaxChange.value = userSettings.maxChange ?? 999;
+  setSelectOptionValue(cfgMinChange, userSettings.minChange ?? -999);
+  setSelectOptionValue(cfgMaxChange, userSettings.maxChange ?? 999);
 
   if (cfgAlertMinProb) cfgAlertMinProb.value = userSettings.alertMinProb ?? 70;
   if (dispAlertMinProb) dispAlertMinProb.textContent = `≥ ${userSettings.alertMinProb ?? 70}%`;
-  if (cfgAlertMaxCost) cfgAlertMaxCost.value = userSettings.alertMaxCost ?? 5000;
+  setSelectOptionValue(cfgAlertMaxCost, userSettings.alertMaxCost ?? 5000);
 }
 
 function updateActiveFilterBadge() {

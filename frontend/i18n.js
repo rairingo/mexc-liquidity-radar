@@ -36,7 +36,8 @@ const TRANSLATIONS = {
     lblAlertMinProb: "Audio Alert: Min Probability Score",
     lblAlertMaxCost: "Audio Alert: Max Trigger Capital ($USDT)",
     btnApply: "Apply & Save Filters",
-    btnReset: "Reset Defaults",
+    btnReset: "Reset to Recommended",
+    btnClearAll: "Clear All Filters",
     
     // Stats Summary
     statMonitored: "Monitored Pairs",
@@ -140,9 +141,6 @@ const TRANSLATIONS = {
     btnExport: "Export",
     btnExportCsv: "Export CSV",
     btnExportJson: "Export JSON",
-    btnReset: "Reset to Recommended",
-    btnClearAll: "Clear All Filters",
-    btnApply: "Apply & Save Filters",
     toastReset: "Reset to recommended pre-breakout filters (0.8-2.5% dist, $1.5k-$8k cost).",
     toastCleared: "All filter criteria cleared (showing all monitored pairs)."
   },
@@ -179,7 +177,8 @@ const TRANSLATIONS = {
     lblAlertMinProb: "音声アラート: 最小発生確率",
     lblAlertMaxCost: "音声アラート: 最大トリガー必要額 ($USDT)",
     btnApply: "設定を保存・適用",
-    btnReset: "初期値にリセット",
+    btnReset: "おすすめ設定にリセット",
+    btnClearAll: "すべての条件を解除",
 
     statMonitored: "監視銘柄数",
     statMonitoredSub: "MEXC現物アルトコイン (出来高2万〜250万$)",
@@ -276,9 +275,6 @@ const TRANSLATIONS = {
     btnExport: "エクスポート",
     btnExportCsv: "CSVで出力",
     btnExportJson: "JSONで出力",
-    btnReset: "おすすめ設定にリセット",
-    btnClearAll: "すべての条件を解除",
-    btnApply: "設定を保存・適用",
     toastReset: "おすすめデフォルト設定（仕掛け前夜・嵐の前の静けさ）にリセットしました。",
     toastCleared: "すべてのフィルター条件を解除しました（全銘柄を表示中）。"
   },
@@ -315,7 +311,8 @@ const TRANSLATIONS = {
     lblAlertMinProb: "声音警报: 最低概率",
     lblAlertMaxCost: "声音警报: 最大所需资金 ($USDT)",
     btnApply: "保存并应用筛选",
-    btnReset: "恢复默认值",
+    btnReset: "重置为推荐预设",
+    btnClearAll: "清除全部筛选",
 
     statMonitored: "监控币对数",
     statMonitoredSub: "MEXC 活跃山寨币 (成交额 2万-250万美元)",
@@ -412,9 +409,6 @@ const TRANSLATIONS = {
     btnExport: "导出数据",
     btnExportCsv: "导出为 CSV",
     btnExportJson: "导出为 JSON",
-    btnReset: "重置为推荐预设",
-    btnClearAll: "清除全部筛选",
-    btnApply: "保存并应用筛选",
     toastReset: "已重置为推荐预设（爆发前夜/山雨欲来）。",
     toastCleared: "已清除所有筛选条件（显示全部标的）。"
   },
@@ -450,8 +444,9 @@ const TRANSLATIONS = {
     lblChangeSub: "상승 추세 또는 급락 과매도 종목 필터링 (%)",
     lblAlertMinProb: "음성 알림: 최소 확률",
     lblAlertMaxCost: "음성 알림: 최대 소요 자금 ($USDT)",
-    btnApply: "설정 저장 및 적용",
-    btnReset: "기본값 초기화",
+    btnApply: "필터 저장 및 적용",
+    btnReset: "추천 기본값으로 리셋",
+    btnClearAll: "모든 필터 해제",
 
     statMonitored: "모니터링 종목 수",
     statMonitoredSub: "MEXC 현물 알트코인 (거래대금 2만~250만$)",
@@ -548,9 +543,6 @@ const TRANSLATIONS = {
     btnExport: "내보내기",
     btnExportCsv: "CSV 내보내기",
     btnExportJson: "JSON 내보내기",
-    btnReset: "추천 기본값으로 리셋",
-    btnClearAll: "모든 필터 해제",
-    btnApply: "필터 저장 및 적용",
     toastReset: "추천 사전 돌파 설정(폭풍 전야)으로 리셋되었습니다.",
     toastCleared: "모든 필터가 해제되었습니다 (전체 종목 표시 중)."
   },
@@ -587,7 +579,8 @@ const TRANSLATIONS = {
     lblAlertMinProb: "Alerta Sonora: Probabilidad Mínima",
     lblAlertMaxCost: "Alerta Sonora: Capital Máximo ($USDT)",
     btnApply: "Guardar y Aplicar Filtros",
-    btnReset: "Restablecer Valores",
+    btnReset: "Restablecer Recomendados",
+    btnClearAll: "Borrar Todos los Filtros",
 
     statMonitored: "Pares Monitoreados",
     statMonitoredSub: "Altcoins Activas MEXC (Volumen $20k-$2.5M)",
@@ -684,9 +677,6 @@ const TRANSLATIONS = {
     btnExport: "Exportar",
     btnExportCsv: "Exportar CSV",
     btnExportJson: "Exportar JSON",
-    btnReset: "Restablecer Recomendados",
-    btnClearAll: "Borrar Todos los Filtros",
-    btnApply: "Aplicar y Guardar",
     toastReset: "Restablecido a los filtros predeterminados recomendados.",
     toastCleared: "Todas las condiciones de filtro eliminadas (mostrando todos)."
   },
@@ -723,7 +713,8 @@ const TRANSLATIONS = {
     lblAlertMinProb: "Chuông Báo: Điểm Xác Suất Tối Thiểu",
     lblAlertMaxCost: "Chuông Báo: Vốn Kích Hoạt Tối Đa ($USDT)",
     btnApply: "Lưu & Áp Dụng Bộ Lọc",
-    btnReset: "Đặt Lại Mặc Định",
+    btnReset: "Đặt lại khuyên dùng",
+    btnClearAll: "Xóa tất cả bộ lọc",
 
     statMonitored: "Cặp Theo Dõi",
     statMonitoredSub: "Altcoin MEXC Sôi Động (Khối Lượng $20k-$2.5M)",
@@ -820,9 +811,6 @@ const TRANSLATIONS = {
     btnExport: "Xuất dữ liệu",
     btnExportCsv: "Xuất file CSV",
     btnExportJson: "Xuất file JSON",
-    btnReset: "Đặt lại khuyên dùng",
-    btnClearAll: "Xóa tất cả bộ lọc",
-    btnApply: "Lưu và áp dụng",
     toastReset: "Đã đặt lại về bộ lọc khuyên dùng (trước đợt bùng nổ).",
     toastCleared: "Đã xóa tất cả bộ lọc (đang hiển thị tất cả các cặp)."
   }
