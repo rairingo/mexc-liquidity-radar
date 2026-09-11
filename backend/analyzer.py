@@ -237,6 +237,7 @@ class LiquidityAnalyzer:
         klines: Optional[List[List[Any]]] = None,
         swing_low: Optional[float] = None,
         swing_high: Optional[float] = None,
+        has_futures: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """銘柄ごとの総合解析（下落雪崩 ＆ 上昇踏み上げの両方向）"""
         bids = depth.get("bids", [])
@@ -406,7 +407,11 @@ class LiquidityAnalyzer:
             # 板比率
             "bid_ratio_pct": imbalance["bid_ratio_pct"],
             "ask_ratio_pct": imbalance["ask_ratio_pct"],
-            "bid_vol_3pct_usdt": imbalance["bid_vol_usdt"],
-            "ask_vol_3pct_usdt": imbalance["ask_vol_usdt"],
-            "mexc_trade_url": f"https://futures.mexc.com/exchange/{symbol.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}",
+            # 先物の有無に応じたURL（先物なしの場合は現物取引所へ）
+            "has_futures": bool(has_futures) if has_futures is not None else True,
+            "mexc_trade_url": (
+                f"https://www.mexc.com/exchange/{symbol.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"
+                if has_futures is False
+                else f"https://futures.mexc.com/exchange/{symbol.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"
+            ),
         }

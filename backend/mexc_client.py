@@ -66,3 +66,24 @@ class MexcClient:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
         return resp.json()
+
+    async def get_futures_symbols(self) -> set:
+        """MEXCの先物（Futures）全コントラクト一覧を取得してシンボルのセットを返す"""
+        url = "https://contract.mexc.com/api/v1/contract/detail"
+        client = self._get_client()
+        try:
+            resp = await client.get(url, timeout=10.0)
+            resp.raise_for_status()
+            data = resp.json()
+            items = data.get("data", [])
+            symbols = set()
+            for it in items:
+                sym = it.get("symbol", "")
+                if sym:
+                    symbols.add(sym)
+                    symbols.add(sym.replace("_", ""))
+            return symbols
+        except Exception as e:
+            logger.warning(f"Failed fetching futures contract detail: {e}")
+            return set()
+

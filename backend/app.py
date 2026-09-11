@@ -42,6 +42,7 @@ client = MexcClient()
 GLOBAL_STATE: Dict[str, Any] = {
     "items_map": {},      # symbol -> analysis dict
     "target_pool": [],    # 現在の巡回対象リスト
+    "futures_symbols": set(), # MEXC先物上場シンボルのセット (例: 'BTC_USDT', 'BTCUSDT')
     "last_ticker_sync": 0.0,
     "last_batch_sync": 0.0,
     "backoff_until": 0.0, # 429検知時のグローバルクールダウン時刻
@@ -75,6 +76,10 @@ async def analyze_single_symbol(item: Dict[str, Any], use_klines: bool = False) 
             except Exception as e_kline:
                 logger.debug(f"Failed fetching klines for {symbol}: {e_kline}")
 
+        futures_set = GLOBAL_STATE.get("futures_symbols", set())
+        clean_under = symbol.replace("USDT", "_USDT")
+        has_fut = (clean_under in futures_set) or (symbol in futures_set) if futures_set else None
+
         return LiquidityAnalyzer.analyze_symbol(
             symbol=symbol,
             current_price=current_price,
@@ -84,6 +89,7 @@ async def analyze_single_symbol(item: Dict[str, Any], use_klines: bool = False) 
             klines=klines,
             swing_low=swing_low,
             swing_high=swing_high,
+            has_futures=has_fut,
         )
     except Exception as e:
         err_str = str(e)
@@ -143,6 +149,15 @@ async def update_target_pool():
         GLOBAL_STATE["target_pool"] = filtered
         GLOBAL_STATE["last_ticker_sync"] = time.time()
         logger.info(f"Updated monitoring pool to ALL eligible symbols: {len(GLOBAL_STATE['target_pool'])} symbols")
+
+        # MEXC先物コントラクト一覧を取得してキャッシュ
+        try:
+            fut_set = await client.get_futures_symbols()
+            if fut_set:
+                GLOBAL_STATE["futures_symbols"] = fut_set
+                logger.info(f"Updated MEXC futures contract cache: {len(fut_set)} symbols")
+        except Exception as e_fut:
+            logger.warning(f"Failed fetching futures contracts: {e_fut}")
 
         # 銘柄リストをディスクキャッシュに保存
         try:
@@ -316,6 +331,17 @@ async def scan_market(
             opp_vol_ratio = item.get("vol_ratio_up", 1.0)
 
         enriched = dict(item)
+        sym = item.get("symbol", "")
+        clean_under = sym.replace("USDT", "_USDT")
+        fut_set = GLOBAL_STATE.get("futures_symbols", set())
+        has_fut = (clean_under in fut_set) or (sym in fut_set) if fut_set else item.get("has_futures", True)
+        mexc_url = (
+            f"https://futures.mexc.com/exchange/{clean_under}?inviteCode={MEXC_INVITE_CODE}"
+            if has_fut
+            else f"https://www.mexc.com/exchange/{clean_under}?inviteCode={MEXC_INVITE_CODE}"
+        )
+        enriched["has_futures"] = has_fut
+        enriched["mexc_trade_url"] = mexc_url
         enriched["opportunity_side"] = opp_side
         enriched["opportunity_prob"] = opp_prob
         enriched["opportunity_impact"] = opp_impact
@@ -525,9 +551,14 @@ async def pair_detail_page(symbol: str, request: Request):
         "{{BID_RATIO}}": f"{item.get('bid_ratio_pct', 50.0):.1f}",
         "{{ASK_RATIO}}": f"{item.get('ask_ratio_pct', 50.0):.1f}",
         "{{PROB_SCORE}}": f"{prob_score}",
-        "{{IMPACT_SCORE}}": f"{impact_score}",
-        "{{IMPACT_EXTRA_CLASS}}": "high" if impact_score >= 75 else "",
-        "{{MEXC_URL}}": item.get("mexc_trade_url", f"https://futures.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"),
+        "{{MEXC_URL}}": (
+            item.get("mexc_trade_url")
+            or (
+                f"https://futures.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"
+                if ((sym_clean.replace("USDT", "_USDT") in GLOBAL_STATE.get("futures_symbols", set())) or (sym_clean in GLOBAL_STATE.get("futures_symbols", set())))
+                else f"https://www.mexc.com/exchange/{sym_clean.replace('USDT', '_USDT')}?inviteCode={MEXC_INVITE_CODE}"
+            )
+        ),
     }
 
     rendered_html = template_html

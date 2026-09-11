@@ -68,7 +68,11 @@ function getMexcTradeUrl(item) {
     return item.mexc_trade_url;
   }
   const sym = (item && item.symbol) ? item.symbol : "BTCUSDT";
-  return `https://futures.mexc.com/exchange/${sym.replace("USDT", "_USDT")}?inviteCode=${MEXC_INVITE_CODE}`;
+  const cleanUnder = sym.replace("USDT", "_USDT");
+  if (item && item.has_futures === false) {
+    return `https://www.mexc.com/exchange/${cleanUnder}?inviteCode=${MEXC_INVITE_CODE}`;
+  }
+  return `https://futures.mexc.com/exchange/${cleanUnder}?inviteCode=${MEXC_INVITE_CODE}`;
 }
 
 // DOM Elements
@@ -860,7 +864,7 @@ function setupExportMenu() {
         x.opportunity_prob,
         x.opportunity_impact,
         x.volume_24h_usdt,
-        `https://futures.mexc.com/exchange/${x.symbol.replace("USDT", "_USDT")}?inviteCode=3tZTP`
+        getMexcTradeUrl(x)
       ]);
 
       const csvContent = [headers.join(","), ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))].join("\r\n");
