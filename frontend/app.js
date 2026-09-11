@@ -10,7 +10,26 @@ let searchQuery = "";
 let displayLimit = 50; // Items per batch
 
 // User Customizable Filter & Alert Settings (Dual Min & Max Range)
+// v4.5.0 Recommended Default: "Pre-Cascade / 嵐の前の静けさ" 先回りブレイク狙い
 const DEFAULT_SETTINGS = {
+  minProb: 45,
+  maxProb: 75,
+  minImpact: 60,
+  maxImpact: 99,
+  minCost: 1500,
+  maxCost: 8000,
+  minVol: 0,
+  maxVol: 999999999999,
+  minDistance: 0.8,
+  maxDistance: 2.5,
+  minChange: -5.0,
+  maxChange: 3.0,
+  alertMinProb: 70,
+  alertMaxCost: 5000,
+};
+
+// 全条件解除（未フィルタリング状態・全銘柄表示）
+const ALL_UNFILTERED_SETTINGS = {
   minProb: 0,
   maxProb: 99,
   minImpact: 0,
@@ -46,10 +65,15 @@ let prevCostsMap = new Map();
 // Active Inline TradingView Chart Symbol
 let activeChartSymbol = null;
 
-// Load user settings from localStorage if available
+// Load user settings from localStorage if available (auto-upgrades to v4.5.0 recommended defaults on first run)
 try {
-  const saved = localStorage.getItem("mexc_user_settings_v2");
-  if (saved) {
+  const ver = localStorage.getItem("mexc_settings_ver_450");
+  const saved = localStorage.getItem("mexc_user_settings_v3");
+  if (!ver || !saved) {
+    userSettings = { ...DEFAULT_SETTINGS };
+    localStorage.setItem("mexc_user_settings_v3", JSON.stringify(userSettings));
+    localStorage.setItem("mexc_settings_ver_450", "true");
+  } else {
     userSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
   }
 } catch (e) {
@@ -126,6 +150,7 @@ const btnOpenSettings = document.getElementById("btn-open-settings");
 const settingsModalClose = document.getElementById("settings-modal-close");
 const btnApplySettings = document.getElementById("btn-apply-settings");
 const btnResetSettings = document.getElementById("btn-reset-settings");
+const btnClearSettings = document.getElementById("btn-clear-settings");
 const activeFilterBadge = document.getElementById("active-filter-badge");
 
 // Settings Inputs (Dual Min-Max Range Controls)
@@ -1143,18 +1168,29 @@ function setupSettingsModal() {
       saveSettings();
       settingsModal.classList.add("hidden");
       renderDashboard();
-      showToast("Filter criteria applied.");
+      showToast(typeof t === "function" ? t("btnApply") : "Filter criteria applied.");
     });
   }
 
-  // Reset Defaults Button
+  // Reset to Recommended Defaults Button
   if (btnResetSettings) {
     btnResetSettings.addEventListener("click", () => {
       userSettings = { ...DEFAULT_SETTINGS };
       saveSettings();
       updateSettingsModalUI();
       renderDashboard();
-      showToast("Reset to default filters.");
+      showToast(typeof t === "function" ? t("toastReset") : "Reset to recommended filters.");
+    });
+  }
+
+  // Clear All Filters Button (Show All Pairs Unfiltered)
+  if (btnClearSettings) {
+    btnClearSettings.addEventListener("click", () => {
+      userSettings = { ...ALL_UNFILTERED_SETTINGS };
+      saveSettings();
+      updateSettingsModalUI();
+      renderDashboard();
+      showToast(typeof t === "function" ? t("toastCleared") : "All filters cleared.");
     });
   }
 }
@@ -1186,18 +1222,18 @@ function updateSettingsModalUI() {
 function updateActiveFilterBadge() {
   if (!activeFilterBadge) return;
   let count = 0;
-  if ((userSettings.minProb ?? 0) > DEFAULT_SETTINGS.minProb) count++;
-  if ((userSettings.maxProb ?? 99) < DEFAULT_SETTINGS.maxProb) count++;
-  if ((userSettings.minImpact ?? 0) > DEFAULT_SETTINGS.minImpact) count++;
-  if ((userSettings.maxImpact ?? 99) < DEFAULT_SETTINGS.maxImpact) count++;
-  if ((userSettings.minCost ?? 0) > DEFAULT_SETTINGS.minCost) count++;
-  if ((userSettings.maxCost ?? 999999999) < DEFAULT_SETTINGS.maxCost) count++;
-  if ((userSettings.minDistance ?? 0) > DEFAULT_SETTINGS.minDistance) count++;
-  if ((userSettings.maxDistance ?? 999) < DEFAULT_SETTINGS.maxDistance) count++;
-  if ((userSettings.minVol ?? 0) > DEFAULT_SETTINGS.minVol) count++;
-  if ((userSettings.maxVol ?? 999999999999) < DEFAULT_SETTINGS.maxVol) count++;
-  if ((userSettings.minChange ?? -999) > DEFAULT_SETTINGS.minChange) count++;
-  if ((userSettings.maxChange ?? 999) < DEFAULT_SETTINGS.maxChange) count++;
+  if (userSettings.minProb !== DEFAULT_SETTINGS.minProb) count++;
+  if (userSettings.maxProb !== DEFAULT_SETTINGS.maxProb) count++;
+  if (userSettings.minImpact !== DEFAULT_SETTINGS.minImpact) count++;
+  if (userSettings.maxImpact !== DEFAULT_SETTINGS.maxImpact) count++;
+  if (userSettings.minCost !== DEFAULT_SETTINGS.minCost) count++;
+  if (userSettings.maxCost !== DEFAULT_SETTINGS.maxCost) count++;
+  if (userSettings.minDistance !== DEFAULT_SETTINGS.minDistance) count++;
+  if (userSettings.maxDistance !== DEFAULT_SETTINGS.maxDistance) count++;
+  if (userSettings.minVol !== DEFAULT_SETTINGS.minVol) count++;
+  if (userSettings.maxVol !== DEFAULT_SETTINGS.maxVol) count++;
+  if (userSettings.minChange !== DEFAULT_SETTINGS.minChange) count++;
+  if (userSettings.maxChange !== DEFAULT_SETTINGS.maxChange) count++;
 
   if (count > 0) {
     activeFilterBadge.textContent = count;
@@ -1209,8 +1245,13 @@ function updateActiveFilterBadge() {
 
 function loadSettings() {
   try {
-    const saved = localStorage.getItem("mexc_terminal_settings");
-    if (saved) {
+    const ver = localStorage.getItem("mexc_settings_ver_450");
+    const saved = localStorage.getItem("mexc_user_settings_v3");
+    if (!ver || !saved) {
+      userSettings = { ...DEFAULT_SETTINGS };
+      saveSettings();
+      localStorage.setItem("mexc_settings_ver_450", "true");
+    } else {
       userSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
     }
   } catch (e) {
@@ -1222,7 +1263,7 @@ function loadSettings() {
 
 function saveSettings() {
   try {
-    localStorage.setItem("mexc_terminal_settings", JSON.stringify(userSettings));
+    localStorage.setItem("mexc_user_settings_v3", JSON.stringify(userSettings));
   } catch (e) {
     console.debug("Error saving settings:", e);
   }

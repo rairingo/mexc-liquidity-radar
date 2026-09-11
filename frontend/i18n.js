@@ -139,7 +139,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "Orderbook barrier thinned sharply since last scan!",
     btnExport: "Export",
     btnExportCsv: "Export CSV",
-    btnExportJson: "Export JSON"
+    btnExportJson: "Export JSON",
+    btnReset: "Reset to Recommended",
+    btnClearAll: "Clear All Filters",
+    btnApply: "Apply & Save Filters",
+    toastReset: "Reset to recommended pre-breakout filters (0.8-2.5% dist, $1.5k-$8k cost).",
+    toastCleared: "All filter criteria cleared (showing all monitored pairs)."
   },
   ja: {
     appTitle: "MEXC板監視ターミナル",
@@ -270,7 +275,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "前回のスキャンと比べて板の防壁が急激に薄くなっています！",
     btnExport: "エクスポート",
     btnExportCsv: "CSVで出力",
-    btnExportJson: "JSONで出力"
+    btnExportJson: "JSONで出力",
+    btnReset: "おすすめ設定にリセット",
+    btnClearAll: "すべての条件を解除",
+    btnApply: "設定を保存・適用",
+    toastReset: "おすすめデフォルト設定（仕掛け前夜・嵐の前の静けさ）にリセットしました。",
+    toastCleared: "すべてのフィルター条件を解除しました（全銘柄を表示中）。"
   },
   zh: {
     appTitle: "MEXC 深度清算终端",
@@ -401,7 +411,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "相比上次扫描，盘口防线资金大幅减少！",
     btnExport: "导出数据",
     btnExportCsv: "导出为 CSV",
-    btnExportJson: "导出为 JSON"
+    btnExportJson: "导出为 JSON",
+    btnReset: "重置为推荐预设",
+    btnClearAll: "清除全部筛选",
+    btnApply: "保存并应用筛选",
+    toastReset: "已重置为推荐预设（爆发前夜/山雨欲来）。",
+    toastCleared: "已清除所有筛选条件（显示全部标的）。"
   },
   ko: {
     appTitle: "MEXC 오더북 유동성 터미널",
@@ -532,7 +547,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "이전 스캔 대비 호가창 방어벽이 급격히 얇아졌습니다!",
     btnExport: "내보내기",
     btnExportCsv: "CSV 내보내기",
-    btnExportJson: "JSON 내보내기"
+    btnExportJson: "JSON 내보내기",
+    btnReset: "추천 기본값으로 리셋",
+    btnClearAll: "모든 필터 해제",
+    btnApply: "필터 저장 및 적용",
+    toastReset: "추천 사전 돌파 설정(폭풍 전야)으로 리셋되었습니다.",
+    toastCleared: "모든 필터가 해제되었습니다 (전체 종목 표시 중)."
   },
   es: {
     appTitle: "Terminal de Liquidez MEXC",
@@ -663,7 +683,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "¡El muro del libro de órdenes se adelgazó bruscamente desde el último escaneo!",
     btnExport: "Exportar",
     btnExportCsv: "Exportar CSV",
-    btnExportJson: "Exportar JSON"
+    btnExportJson: "Exportar JSON",
+    btnReset: "Restablecer Recomendados",
+    btnClearAll: "Borrar Todos los Filtros",
+    btnApply: "Aplicar y Guardar",
+    toastReset: "Restablecido a los filtros predeterminados recomendados.",
+    toastCleared: "Todas las condiciones de filtro eliminadas (mostrando todos)."
   },
   vi: {
     appTitle: "Terminal Thanh Khoản MEXC",
@@ -794,7 +819,12 @@ const TRANSLATIONS = {
     tooltipWallThinning: "Tường cản sổ lệnh đã mỏng đi nhanh chóng so với lần quét trước!",
     btnExport: "Xuất dữ liệu",
     btnExportCsv: "Xuất file CSV",
-    btnExportJson: "Xuất file JSON"
+    btnExportJson: "Xuất file JSON",
+    btnReset: "Đặt lại khuyên dùng",
+    btnClearAll: "Xóa tất cả bộ lọc",
+    btnApply: "Lưu và áp dụng",
+    toastReset: "Đã đặt lại về bộ lọc khuyên dùng (trước đợt bùng nổ).",
+    toastCleared: "Đã xóa tất cả bộ lọc (đang hiển thị tất cả các cặp)."
   }
 };
 
