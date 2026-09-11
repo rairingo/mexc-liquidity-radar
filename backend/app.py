@@ -281,22 +281,32 @@ async def scan_market(
         r_cost = item.get("avalanche_trigger_cost_usdt", 0.0)
         s_cost = item.get("squeeze_trigger_cost_usdt", 0.0)
 
-        # どちらの方向により大きなチャンス/歪みがあるかを判定（発生確率ベース）
-        if r_prob >= s_prob:
+        # 有効なコストを持つ方向を優先判定
+        # もし片方が0以下の場合は、有効なコストを持つ方を採用
+        if r_cost > 0 and s_cost > 0:
+            use_avalanche = (r_prob >= s_prob)
+        elif r_cost > 0:
+            use_avalanche = True
+        elif s_cost > 0:
+            use_avalanche = False
+        else:
+            use_avalanche = (r_prob >= s_prob)
+
+        if use_avalanche:
             opp_side = "avalanche"
             opp_prob = r_prob
             opp_impact = r_impact
-            opp_cost = r_cost
-            opp_dist = item.get("distance_to_stop_pct", 0.0)
-            opp_target = item.get("stop_loss_price", 0.0)
+            opp_cost = max(30.0, r_cost)
+            opp_dist = max(0.2, item.get("distance_to_stop_pct", 1.0))
+            opp_target = item.get("stop_loss_price", item.get("current_price", 0.0) * 0.985)
             opp_vol_ratio = item.get("vol_ratio_down", 1.0)
         else:
             opp_side = "squeeze"
             opp_prob = s_prob
             opp_impact = s_impact
-            opp_cost = s_cost
-            opp_dist = item.get("distance_to_high_pct", 0.0)
-            opp_target = item.get("squeeze_target_price", 0.0)
+            opp_cost = max(30.0, s_cost)
+            opp_dist = max(0.2, item.get("distance_to_high_pct", 1.0))
+            opp_target = item.get("squeeze_target_price", item.get("current_price", 0.0) * 1.015)
             opp_vol_ratio = item.get("vol_ratio_up", 1.0)
 
         enriched = dict(item)
@@ -304,8 +314,8 @@ async def scan_market(
         enriched["opportunity_prob"] = opp_prob
         enriched["opportunity_impact"] = opp_impact
         enriched["opportunity_score"] = opp_prob # 互換性
-        enriched["opportunity_cost"] = opp_cost
-        enriched["opportunity_distance"] = opp_dist
+        enriched["opportunity_cost"] = round(opp_cost, 2)
+        enriched["opportunity_distance"] = round(opp_dist, 2)
         enriched["opportunity_target"] = opp_target
         enriched["opportunity_vol_ratio"] = opp_vol_ratio
         processed_items.append(enriched)

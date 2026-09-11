@@ -54,10 +54,25 @@ class LiquidityAnalyzer:
         現在価格から損切りライン(stop_price)までに並んでいる買い板の累積金額（USDT）を計算。
         ＝『あと何ドルの成行売りが入れば損切りラインを貫通・雪崩れるか』
         """
-        if not bids or current_price <= 0 or stop_price <= 0:
-            return {"trigger_cost_usdt": 0.0, "distance_pct": 0.0, "orders_count": 0, "exhausted_book": False}
+        if not bids or current_price <= 0:
+            return {"trigger_cost_usdt": 100.0, "distance_pct": 1.0, "orders_count": 0, "exhausted_book": False, "adjusted_stop": stop_price}
 
-        distance_pct = ((current_price - stop_price) / current_price) * 100.0
+        # 最良買い気配の取得
+        try:
+            best_bid_p = float(bids[0][0])
+            best_bid_q = float(bids[0][1])
+            min_physical_cost = max(20.0, round(best_bid_p * best_bid_q, 2))
+        except (ValueError, IndexError):
+            best_bid_p = current_price
+            min_physical_cost = 50.0
+
+        # 目標価格が現在価格以上、または最良気配より高い場合（新安値ブレイク中）
+        # → 次なる雪崩れ目標として現在価格の -1.5% 直下を動的設定
+        effective_stop = stop_price
+        if effective_stop >= current_price or effective_stop >= best_bid_p:
+            effective_stop = current_price * 0.985
+
+        distance_pct = max(0.15, ((current_price - effective_stop) / current_price) * 100.0)
 
         total_cost_usdt = 0.0
         orders_count = 0
@@ -71,18 +86,30 @@ class LiquidityAnalyzer:
                 continue
 
             # 損切りラインより上の買い指値をすべて合算
-            if price >= stop_price:
+            if price >= effective_stop:
                 total_cost_usdt += price * qty
                 orders_count += 1
             else:
                 reached_stop = True
                 break
 
+        # どんなに薄くても最低保証コスト（最良気配1枚分）は必ず必要
+        final_cost = max(min_physical_cost, total_cost_usdt)
+
+        # もし板が薄すぎて70本でもeffective_stopに届かなかった場合、板の平均厚みから外挿補正
+        if not reached_stop and orders_count > 0:
+            last_price = float(bids[-1][0])
+            covered_dist = ((current_price - last_price) / current_price) * 100.0
+            if covered_dist > 0 and distance_pct > covered_dist:
+                ratio = distance_pct / covered_dist
+                final_cost = max(final_cost, total_cost_usdt * min(3.0, ratio))
+
         return {
-            "trigger_cost_usdt": round(total_cost_usdt, 2),
+            "trigger_cost_usdt": round(final_cost, 2),
             "distance_pct": round(distance_pct, 2),
-            "orders_count": orders_count,
+            "orders_count": max(1, orders_count),
             "exhausted_book": not reached_stop,
+            "adjusted_stop": effective_stop,
         }
 
     @staticmethod
@@ -95,10 +122,25 @@ class LiquidityAnalyzer:
         現在価格からショート勢の損切りライン(stop_price_short)までに並んでいる売り板の累積金額（USDT）を計算。
         ＝『あと何ドルの成行買いが入れば天井を貫通・ショート踏み上げ（爆騰）を起こせるか』
         """
-        if not asks or current_price <= 0 or stop_price_short <= 0:
-            return {"trigger_cost_usdt": 0.0, "distance_pct": 0.0, "orders_count": 0, "exhausted_book": False}
+        if not asks or current_price <= 0:
+            return {"trigger_cost_usdt": 100.0, "distance_pct": 1.0, "orders_count": 0, "exhausted_book": False, "adjusted_stop": stop_price_short}
 
-        distance_pct = ((stop_price_short - current_price) / current_price) * 100.0
+        # 最良売り気配の取得
+        try:
+            best_ask_p = float(asks[0][0])
+            best_ask_q = float(asks[0][1])
+            min_physical_cost = max(20.0, round(best_ask_p * best_ask_q, 2))
+        except (ValueError, IndexError):
+            best_ask_p = current_price
+            min_physical_cost = 50.0
+
+        # 目標価格が現在価格以下、または最良売り気配より低い場合（新高値ブレイク中）
+        # → 次なる踏み上げ目標として現在価格の +1.5% 直上を動的設定
+        effective_stop = stop_price_short
+        if effective_stop <= current_price or effective_stop <= best_ask_p:
+            effective_stop = current_price * 1.015
+
+        distance_pct = max(0.15, ((effective_stop - current_price) / current_price) * 100.0)
 
         total_cost_usdt = 0.0
         orders_count = 0
@@ -112,18 +154,29 @@ class LiquidityAnalyzer:
                 continue
 
             # ショート損切りライン以下の売り指値をすべて合算
-            if price <= stop_price_short:
+            if price <= effective_stop:
                 total_cost_usdt += price * qty
                 orders_count += 1
             else:
                 reached_stop = True
                 break
 
+        final_cost = max(min_physical_cost, total_cost_usdt)
+
+        # もし板が薄すぎて70本でもeffective_stopに届かなかった場合、外挿補正
+        if not reached_stop and orders_count > 0:
+            last_price = float(asks[-1][0])
+            covered_dist = ((last_price - current_price) / current_price) * 100.0
+            if covered_dist > 0 and distance_pct > covered_dist:
+                ratio = distance_pct / covered_dist
+                final_cost = max(final_cost, total_cost_usdt * min(3.0, ratio))
+
         return {
-            "trigger_cost_usdt": round(total_cost_usdt, 2),
-            "distance_pct": round(max(0.0, distance_pct), 2),
-            "orders_count": orders_count,
+            "trigger_cost_usdt": round(final_cost, 2),
+            "distance_pct": round(distance_pct, 2),
+            "orders_count": max(1, orders_count),
             "exhausted_book": not reached_stop,
+            "adjusted_stop": effective_stop,
         }
 
     @staticmethod
@@ -222,53 +275,74 @@ class LiquidityAnalyzer:
         spread_pct = ((best_ask - best_bid) / current_price * 100.0) if (best_ask > 0 and current_price > 0) else 99.0
         range_24h_pct = ((s_high - s_low) / current_price) if (current_price > 0 and s_high > 0 and s_low > 0) else 0.0
 
-        # ステーブルコイン判定（$1近辺）または動かないバーコードチャート判定
-        is_stable_or_barcode = (0.96 <= current_price <= 1.04) or (range_24h_pct < 0.035)
+        # ステーブルコイン判定（USDC, FDUSD等のペグ通貨: $0.985〜$1.015 かつ 24hレンジ1%未満）または完全な無風銘柄（24hレンジ0.5%未満）
+        is_pegged_stable = (0.985 <= current_price <= 1.015) and (range_24h_pct < 0.01)
+        is_flat_barcode = (range_24h_pct < 0.005)
+        is_stable_or_barcode = is_pegged_stable or is_flat_barcode
 
         # --- 5. 下落雪崩: 発生確率スコア & 破壊力スコア ---
         cost_down = avalanche["trigger_cost_usdt"]
         dist_down = avalanche["distance_pct"]
         bid_ratio = imbalance["bid_ratio_pct"]
 
-        # 除外条件: すでに損切りラインを割っている、板蒸発、スプレッド過大、ステーブル/バーコード通貨
-        if best_bid <= stop_long or cost_down < 500.0 or spread_pct > 3.5 or dist_down <= 0 or is_stable_or_barcode:
+        # 除外条件: スプレッド過大(>5%)、動かないステーブル/バーコード通貨
+        if cost_down <= 0 or spread_pct > 5.0 or dist_down <= 0 or is_stable_or_barcode:
             avalanche_prob = 5.0
             avalanche_impact = 5.0
             vol_ratio_down = 1.0
         else:
-            # 発生確率スコア（距離の近さ ＋ 突き崩しやすさ）
-            score_down_dist = max(0.0, min(45.0, (6.0 - dist_down) * 9.0))
-            score_down_cost = max(0.0, min(35.0, (35000.0 - cost_down) / 1000.0))
+            # 距離スコア (0-45点): 距離が近いほど急激に高まる（0.3%〜2%が最も危険なクラスタ）
+            score_down_dist = max(0.0, min(45.0, (7.5 - dist_down) * 6.0))
+
+            # コストスコア (0-35点): 所要資金が少ないほど壁が脆く突破確率大
+            if cost_down <= 2000.0:
+                score_down_cost = max(30.0, 35.0 - (cost_down / 400.0))
+            elif cost_down <= 15000.0:
+                score_down_cost = max(15.0, 30.0 - ((cost_down - 2000.0) / 866.0))
+            else:
+                score_down_cost = max(2.0, 15.0 - ((cost_down - 15000.0) / 2500.0))
+
+            # 板の偏りスコア (0-20点): 買い板が薄く売り優勢（bid_ratio < 50%）なほど高得点
             score_down_imb = max(0.0, min(20.0, (50.0 - bid_ratio) * 0.5))
             avalanche_prob = round(max(10.0, min(99.0, score_down_dist + score_down_cost + score_down_imb)), 1)
 
-            # 破壊力スコア（出来高/板厚比 ＋ ボラティリティ）
+            # 破壊力スコア (0-99点): 24h出来高に対して板がどれだけ薄いか（流動性の真空度）
+            import math
             vol_ratio_down = round(volume_24h_usdt / cost_down, 1) if cost_down > 0 else 1.0
-            # 比率が 20倍で30点、100倍で55点、200倍で70点（満点）
-            score_vol_ratio = max(10.0, min(70.0, vol_ratio_down * 0.4))
-            score_volatility = max(5.0, min(30.0, abs(price_change_24h_pct) * 2.5))
-            avalanche_impact = round(max(10.0, min(99.0, score_vol_ratio + score_volatility)), 1)
+            log_ratio = math.log10(max(1.0, vol_ratio_down))
+            score_ratio_down = max(10.0, min(75.0, log_ratio * 26.0))
+            score_volatility_down = max(5.0, min(24.0, abs(price_change_24h_pct) * 2.0))
+            avalanche_impact = round(max(10.0, min(99.0, score_ratio_down + score_volatility_down)), 1)
 
         # --- 6. 上昇踏み上げ: 発生確率スコア & 破壊力スコア ---
         cost_up = squeeze["trigger_cost_usdt"]
         dist_up = squeeze["distance_pct"]
         ask_ratio = imbalance["ask_ratio_pct"]
 
-        # 除外条件: すでに天井突破済み、売り板蒸発、スプレッド過大、ステーブル/バーコード通貨
-        if best_ask >= stop_short or cost_up < 500.0 or spread_pct > 3.5 or dist_up <= 0 or is_stable_or_barcode:
+        # 除外条件: スプレッド過大(>5%)、動かないステーブル/バーコード通貨
+        if cost_up <= 0 or spread_pct > 5.0 or dist_up <= 0 or is_stable_or_barcode:
             squeeze_prob = 5.0
             squeeze_impact = 5.0
             vol_ratio_up = 1.0
         else:
-            score_up_dist = max(0.0, min(45.0, (6.0 - dist_up) * 9.0))
-            score_up_cost = max(0.0, min(35.0, (35000.0 - cost_up) / 1000.0))
+            score_up_dist = max(0.0, min(45.0, (7.5 - dist_up) * 6.0))
+
+            if cost_up <= 2000.0:
+                score_up_cost = max(30.0, 35.0 - (cost_up / 400.0))
+            elif cost_up <= 15000.0:
+                score_up_cost = max(15.0, 30.0 - ((cost_up - 2000.0) / 866.0))
+            else:
+                score_up_cost = max(2.0, 15.0 - ((cost_up - 15000.0) / 2500.0))
+
             score_up_imb = max(0.0, min(20.0, (50.0 - ask_ratio) * 0.5))
             squeeze_prob = round(max(10.0, min(99.0, score_up_dist + score_up_cost + score_up_imb)), 1)
 
+            import math
             vol_ratio_up = round(volume_24h_usdt / cost_up, 1) if cost_up > 0 else 1.0
-            score_vol_ratio_up = max(10.0, min(70.0, vol_ratio_up * 0.4))
-            score_volatility_up = max(5.0, min(30.0, abs(price_change_24h_pct) * 2.5))
-            squeeze_impact = round(max(10.0, min(99.0, score_vol_ratio_up + score_volatility_up)), 1)
+            log_ratio_up = math.log10(max(1.0, vol_ratio_up))
+            score_ratio_up = max(10.0, min(75.0, log_ratio_up * 26.0))
+            score_volatility_up = max(5.0, min(24.0, abs(price_change_24h_pct) * 2.0))
+            squeeze_impact = round(max(10.0, min(99.0, score_ratio_up + score_volatility_up)), 1)
 
         return {
             "symbol": symbol,
@@ -277,21 +351,21 @@ class LiquidityAnalyzer:
             "price_change_24h_pct": price_change_24h_pct,
             # 下落雪崩関連
             "swing_low": s_low,
-            "stop_loss_price": stop_long,
+            "stop_loss_price": avalanche.get("adjusted_stop", stop_long),
             "distance_to_stop_pct": avalanche["distance_pct"],
             "avalanche_trigger_cost_usdt": avalanche["trigger_cost_usdt"],
             "avalanche_prob_score": avalanche_prob,
             "avalanche_impact_score": avalanche_impact,
-            "risk_score": avalanche_prob, # 互換性維持
+            "risk_score": avalanche_prob,
             "vol_ratio_down": vol_ratio_down,
             # 上昇踏み上げ関連
             "swing_high": s_high,
-            "squeeze_target_price": stop_short,
+            "squeeze_target_price": squeeze.get("adjusted_stop", stop_short),
             "distance_to_high_pct": squeeze["distance_pct"],
             "squeeze_trigger_cost_usdt": squeeze["trigger_cost_usdt"],
             "squeeze_prob_score": squeeze_prob,
             "squeeze_impact_score": squeeze_impact,
-            "squeeze_score": squeeze_prob, # 互換性維持
+            "squeeze_score": squeeze_prob,
             "vol_ratio_up": vol_ratio_up,
             # 板比率
             "bid_ratio_pct": imbalance["bid_ratio_pct"],
