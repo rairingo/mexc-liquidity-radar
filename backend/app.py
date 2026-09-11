@@ -255,11 +255,14 @@ app.add_middleware(
 @app.get("/api/scan")
 async def scan_market(
     mode: str = Query("all", description="'all'(総合ミックス), 'avalanche'(下落雪崩のみ), 'squeeze'(上昇踏み上げのみ)"),
+    sort_by: str = Query("composite", description="'composite'(総合スコア降順), 'prob'(発生確率降順), 'impact'(破壊力降順), 'cost'(所要資金昇順)"),
 ) -> Dict[str, Any]:
     """
     バックグラウンド巡回ワーカーが集計した最新データを即時返却（待ち時間0ms）
-    両方向（下落雪崩 ＆ 上昇踏み上げ）を統合したランキングをデフォルト提供
+    両方向（下落雪崩 ＆ 上昇踏み上げ）を統合し、総合期待値スコア(Composite EV)等をデフォルト提供
     """
+    import math
+
     raw_items = list(GLOBAL_STATE["items_map"].values())
 
     # 初回起動直後でまだデータが少ない場合は、初期バッチを同期取得
@@ -278,24 +281,26 @@ async def scan_market(
         s_prob = item.get("squeeze_prob_score", 5.0)
         r_impact = item.get("avalanche_impact_score", 5.0)
         s_impact = item.get("squeeze_impact_score", 5.0)
+        r_comp = item.get("avalanche_composite_score", round(math.sqrt(r_prob * r_impact), 1))
+        s_comp = item.get("squeeze_composite_score", round(math.sqrt(s_prob * s_impact), 1))
         r_cost = item.get("avalanche_trigger_cost_usdt", 0.0)
         s_cost = item.get("squeeze_trigger_cost_usdt", 0.0)
 
-        # 有効なコストを持つ方向を優先判定
-        # もし片方が0以下の場合は、有効なコストを持つ方を採用
+        # 総合期待値スコアまたは確率を比較して優位な方向を選択
         if r_cost > 0 and s_cost > 0:
-            use_avalanche = (r_prob >= s_prob)
+            use_avalanche = (r_comp >= s_comp) if (r_comp != s_comp) else (r_prob >= s_prob)
         elif r_cost > 0:
             use_avalanche = True
         elif s_cost > 0:
             use_avalanche = False
         else:
-            use_avalanche = (r_prob >= s_prob)
+            use_avalanche = (r_comp >= s_comp)
 
         if use_avalanche:
             opp_side = "avalanche"
             opp_prob = r_prob
             opp_impact = r_impact
+            opp_comp = r_comp
             opp_cost = max(30.0, r_cost)
             opp_dist = max(0.2, item.get("distance_to_stop_pct", 1.0))
             opp_target = item.get("stop_loss_price", item.get("current_price", 0.0) * 0.985)
@@ -304,6 +309,7 @@ async def scan_market(
             opp_side = "squeeze"
             opp_prob = s_prob
             opp_impact = s_impact
+            opp_comp = s_comp
             opp_cost = max(30.0, s_cost)
             opp_dist = max(0.2, item.get("distance_to_high_pct", 1.0))
             opp_target = item.get("squeeze_target_price", item.get("current_price", 0.0) * 1.015)
@@ -313,7 +319,8 @@ async def scan_market(
         enriched["opportunity_side"] = opp_side
         enriched["opportunity_prob"] = opp_prob
         enriched["opportunity_impact"] = opp_impact
-        enriched["opportunity_score"] = opp_prob # 互換性
+        enriched["opportunity_composite"] = opp_comp
+        enriched["opportunity_score"] = opp_comp # 互換性および総合スコアをプライマリに設定
         enriched["opportunity_cost"] = round(opp_cost, 2)
         enriched["opportunity_distance"] = round(opp_dist, 2)
         enriched["opportunity_target"] = opp_target
@@ -323,19 +330,27 @@ async def scan_market(
     # モードによる絞り込み
     if mode == "avalanche":
         items = [x for x in processed_items if x["opportunity_side"] == "avalanche"]
-        items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
     elif mode == "squeeze":
         items = [x for x in processed_items if x["opportunity_side"] == "squeeze"]
-        items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
     else:  # 'all' (デフォルト)
         items = processed_items
+
+    # ソート順の適用
+    if sort_by == "prob":
         items.sort(key=lambda x: x["opportunity_prob"], reverse=True)
+    elif sort_by == "impact":
+        items.sort(key=lambda x: x["opportunity_impact"], reverse=True)
+    elif sort_by == "cost":
+        items.sort(key=lambda x: x["opportunity_cost"])
+    else:  # "composite" (デフォルト: 総合期待値スコア降順)
+        items.sort(key=lambda x: x["opportunity_composite"], reverse=True)
 
     return {
         "count": len(items),
         "total_monitored": len(GLOBAL_STATE["target_pool"]),
         "updated_at": GLOBAL_STATE["last_batch_sync"] or time.time(),
         "mode": mode,
+        "sort_by": sort_by,
         "items": items,
     }
 
@@ -459,6 +474,8 @@ async def pair_detail_page(symbol: str, request: Request):
     is_squeeze = s_prob > r_prob
     prob_score = s_prob if is_squeeze else r_prob
     impact_score = item.get("squeeze_impact_score" if is_squeeze else "avalanche_impact_score", 5.0)
+    import math
+    comp_score = item.get("squeeze_composite_score" if is_squeeze else "avalanche_composite_score", round(math.sqrt(prob_score * impact_score), 1))
     trigger_cost = item.get("squeeze_trigger_cost_usdt" if is_squeeze else "avalanche_trigger_cost_usdt", 0.0)
     distance = item.get("distance_to_high_pct" if is_squeeze else "distance_to_stop_pct", 0.0)
     target_price = item.get("squeeze_target_price" if is_squeeze else "stop_loss_price", 0.0)
@@ -478,7 +495,7 @@ async def pair_detail_page(symbol: str, request: Request):
     )
 
     meta_title = f"{sym_clean} Liquidity Depth & {opp_type_text} Radar | MEXC Terminal"
-    meta_desc = f"{sym_clean} orderbook analysis: Current price ${current_price}. {desc_action} Probability Score: {prob_score}/99, Impact: {impact_score}/99."
+    meta_desc = f"{sym_clean} orderbook analysis: Current price ${current_price}. {desc_action} Composite EV: {comp_score}/99, Probability: {prob_score}/99, Impact: {impact_score}/99."
 
     canonical_url = f"https://mexc-liquidity-radar.duckdns.org/pair/{sym_clean}"
 
@@ -503,6 +520,7 @@ async def pair_detail_page(symbol: str, request: Request):
         "{{TARGET_PRICE}}": f"{target_price:,.6f}" if target_price < 1 else f"{target_price:,.4f}",
         "{{HIGH_PRICE}}": f"{item.get('swing_high', 0.0):,.4f}",
         "{{LOW_PRICE}}": f"{item.get('swing_low', 0.0):,.4f}",
+        "{{COMPOSITE_SCORE}}": f"{comp_score}",
         "{{VOLUME_24H}}": f"{item.get('volume_24h_usdt', 0.0):,.2f}",
         "{{BID_RATIO}}": f"{item.get('bid_ratio_pct', 50.0):.1f}",
         "{{ASK_RATIO}}": f"{item.get('ask_ratio_pct', 50.0):.1f}",

@@ -421,14 +421,14 @@
 
         // Chapter 5
         ch5Num: "05.",
-        ch5Title: "Dual-Score Quantitative Valuation Model",
-        ch5P1: "To enable rapid decision-making, the engine projects multivariate orderbook data onto two orthogonal scores (0 to 99):",
-        ch5Score1Title: "🎯 Breakout Probability Score (0 - 99)",
-        ch5Score1Text: "Quantifies the mathematical likelihood of imminent penetration based on distance to barrier (max 45 pts), required trigger capital (max 35 pts), and book imbalance (max 20 pts).",
-        ch5Score2Title: "💣 Impact Multiplier Score (0 - 99)",
-        ch5Score2Text: "Measures the expected post-breakout volatility based on the Turnover-to-Depth ratio (daily volume vs resting depth) and 24-hour historical volatility.",
-        ch5Formula1: "S_{\\text{prob}} = \\min\\Big(99, \\, \\max\\big(10, \\, \\text{Score}_{\\text{dist}} + \\text{Score}_{\\text{cost}} + \\text{Score}_{\\text{imbalance}}\\big)\\Big)",
-        ch5Formula2: "S_{\\text{impact}} = \\min\\Big(99, \\, \\max\\big(10, \\, 0.4 \\times \\frac{\\text{Volume}_{24h}}{C_{\\text{trigger}}} + 2.5 \\times |\\Delta P_{24h}|\\big)\\Big)",
+        ch5Title: "Dimensionless Valuation & Composite EV Model",
+        ch5P1: "To maintain mathematical rigor across varied liquidity profiles, all variables are transformed into dimensionless factors before synthesis into our dual-score and composite expected value framework:",
+        ch5Score1Title: "🎯 Dimensionless Probability Score (S_prob: 10 - 99)",
+        ch5Score1Text: "Quantifies the mathematical likelihood of penetration by normalizing trigger capital against 1-minute volume (λ_cost = C_trigger / V_1m), distance against 24h trading range (κ_dist = D% / R_24h), and orderbook imbalance (f_imb) into [0, 1] bounded scalars.",
+        ch5Score2Title: "💣 Impact Multiplier Score (S_impact: 10 - 99)",
+        ch5Score2Text: "Evaluates the explosive severity of the post-breakout liquidity trap based on the logarithmic Turnover-to-Depth ratio and 24-hour historical price velocity.",
+        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.40 \\cdot \\tilde{f}_{\\text{dist}} + 0.40 \\cdot \\tilde{f}_{\\text{cost}} + 0.20 \\cdot \\tilde{f}_{\\text{imb}} \\right)",
+        ch5Formula2: "S_{\\text{composite}} = \\sqrt{S_{\\text{prob}} \\times S_{\\text{impact}}} \\quad (\\text{Geometric Mean EV})",
 
         // Chapter 6
         ch6Num: "06.",
@@ -504,14 +504,14 @@
 
         // Chapter 5
         ch5Num: "05.",
-        ch5Title: "デュアルスコア定式化モデル（Dual-Score Model）",
-        ch5P1: "トレーダーが一目で相場の歪みを直感把握できるよう、本ターミナルは2つの直交するクオンツスコア（0〜99）を算出して提示します：",
-        ch5Score1Title: "🎯 発生確率スコア（Breakout Probability: 0〜99）",
-        ch5Score1Text: "「そのラインが今まさに突破される確からしさ」を評価。損切りラインまでの距離の近さ（最大45点）、貫通に必要な資金の少なさ（最大35点）、板の不均衡（最大20点）を合算して正規化。",
-        ch5Score2Title: "💣 破壊力倍率スコア（Impact Multiplier: 0〜99）",
-        ch5Score2Text: "「突破された時の反動・ボラティリティの凄まじさ」を評価。日次出来高に対して板厚がどれだけ薄いか（Turnover-to-Depth比、最大70点）と直近の変動率（最大30点）から算出。",
-        ch5Formula1: "S_{\\text{prob}} = \\min\\Big(99, \\, \\max\\big(10, \\, \\text{Score}_{\\text{dist}} + \\text{Score}_{\\text{cost}} + \\text{Score}_{\\text{imbalance}}\\big)\\Big)",
-        ch5Formula2: "S_{\\text{impact}} = \\min\\Big(99, \\, \\max\\big(10, \\, 0.4 \\times \\frac{\\text{Volume}_{24h}}{C_{\\text{trigger}}} + 2.5 \\times |\\Delta P_{24h}|\\big)\\Big)",
+        ch5Title: "完全無次元化評価 ＆ 総合期待値（Composite EV）モデル",
+        ch5P1: "異なる価格帯や出来高規模の銘柄を公平に比較するため、すべての入力変数を無次元化（Dimensionless）してから多変量合成し、確率スコアと総合期待値を導出します：",
+        ch5Score1Title: "🎯 無次元化発生確率スコア（S_prob: 10〜99）",
+        ch5Score1Text: "貫通必要資本を1分間平均出来高に対する比率（λ_cost = C_trigger / V_1m）、節目距離を日中変動幅に対する比率（κ_dist = D% / R_24h）、板不均衡度を [0, 1] に無次元正規化して加重合成。",
+        ch5Score2Title: "💣 破壊力倍率スコア（S_impact: 10〜99）",
+        ch5Score2Text: "出来高に対する板の薄さ（対数比率 log10(V_24h / C_trigger)）および日中価格変動速度から、突破時に爆発する流動性真空トラップの凄まじさを評価。",
+        ch5Formula1: "S_{\\text{prob}} = 10 + 89 \\times \\left( 0.40 \\cdot \\tilde{f}_{\\text{dist}} + 0.40 \\cdot \\tilde{f}_{\\text{cost}} + 0.20 \\cdot \\tilde{f}_{\\text{imb}} \\right)",
+        ch5Formula2: "S_{\\text{composite}} = \\sqrt{S_{\\text{prob}} \\times S_{\\text{impact}}} \\quad (\\text{相乗平均期待値})",
 
         // Chapter 6
         ch6Num: "06.",

@@ -639,6 +639,16 @@ body.tv-theme {
   color: var(--tv-red);
   border: 1px solid rgba(242, 54, 69, 0.4);
 }
+.badge-composite {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+.badge-composite.high {
+  background-color: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.45);
+}
 
 .tv-table-link {
   color: var(--tv-blue);

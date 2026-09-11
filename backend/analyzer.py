@@ -290,29 +290,42 @@ class LiquidityAnalyzer:
             avalanche_prob = 5.0
             avalanche_impact = 5.0
             vol_ratio_down = 1.0
+            avalanche_composite = 5.0
         else:
-            # 距離スコア (0-45点): 距離が近いほど急激に高まる（0.3%〜2%が最も危険なクラスタ）
-            score_down_dist = max(0.0, min(45.0, (7.5 - dist_down) * 6.0))
-
-            # コストスコア (0-35点): 所要資金が少ないほど壁が脆く突破確率大
-            if cost_down <= 2000.0:
-                score_down_cost = max(30.0, 35.0 - (cost_down / 400.0))
-            elif cost_down <= 15000.0:
-                score_down_cost = max(15.0, 30.0 - ((cost_down - 2000.0) / 866.0))
-            else:
-                score_down_cost = max(2.0, 15.0 - ((cost_down - 15000.0) / 2500.0))
-
-            # 板の偏りスコア (0-20点): 買い板が薄く売り優勢（bid_ratio < 50%）なほど高得点
-            score_down_imb = max(0.0, min(20.0, (50.0 - bid_ratio) * 0.5))
-            avalanche_prob = round(max(10.0, min(99.0, score_down_dist + score_down_cost + score_down_imb)), 1)
-
-            # 破壊力スコア (0-99点): 24h出来高に対して板がどれだけ薄いか（流動性の真空度）
+            # 1分間あたりの平均出来高（USDT）
+            vol_1m = max(100.0, volume_24h_usdt / 1440.0)
+            
+            # 【無次元化 コスト因子 λ_cost】
+            # 「貫通に必要な板の厚みが、平均して何分間の市場出来高に相当するか」
+            # 1分未満で貫通できるならλ<=1（薄い・高確率）、30分以上かかるならλ>=30（極厚の壁）
+            lambda_cost_down = cost_down / vol_1m
+            # 対数スケーリングで 0.0 〜 1.0 に正規化（λ=0で1.0、λ>=30で0.0）
             import math
+            norm_cost_down = max(0.0, min(1.0, 1.0 - (math.log(1.0 + min(30.0, lambda_cost_down)) / math.log(31.0))))
+
+            # 【無次元化 距離因子 κ_dist】
+            # 日中レンジ（高値-安値%）に対する損切りラインまでの距離の比率（無次元化）
+            base_range_pct = max(3.0, range_24h_pct * 100.0)
+            norm_dist_down = max(0.0, min(1.0, 1.0 - (dist_down / base_range_pct)))
+
+            # 【無次元化 板不均衡因子 f_imb】
+            # 売り優勢（買い板が50%未満）な度合いを 0.0 〜 1.0 に正規化
+            norm_imb_down = max(0.0, min(1.0, (50.0 - bid_ratio) / 50.0))
+
+            # 無次元正規化スコアの加重合成（距離40% + コスト40% + 不均衡20%）
+            weighted_prob_down = (0.40 * norm_dist_down) + (0.40 * norm_cost_down) + (0.20 * norm_imb_down)
+            avalanche_prob = round(10.0 + (89.0 * weighted_prob_down), 1)
+
+            # 破壊力スコア (10-99点): 24h出来高に対して板がどれだけ薄いか（流動性の真空度）
             vol_ratio_down = round(volume_24h_usdt / cost_down, 1) if cost_down > 0 else 1.0
             log_ratio = math.log10(max(1.0, vol_ratio_down))
             score_ratio_down = max(10.0, min(75.0, log_ratio * 26.0))
             score_volatility_down = max(5.0, min(24.0, abs(price_change_24h_pct) * 2.0))
             avalanche_impact = round(max(10.0, min(99.0, score_ratio_down + score_volatility_down)), 1)
+
+            # 【総合期待値スコア (Composite EV Score)】
+            # 確率(P) × 破壊力(I) の幾何平均（相乗平均）により、両方高い優良機会を最大評価
+            avalanche_composite = round(math.sqrt(avalanche_prob * avalanche_impact), 1)
 
         # --- 6. 上昇踏み上げ: 発生確率スコア & 破壊力スコア ---
         cost_up = squeeze["trigger_cost_usdt"]
@@ -324,25 +337,30 @@ class LiquidityAnalyzer:
             squeeze_prob = 5.0
             squeeze_impact = 5.0
             vol_ratio_up = 1.0
+            squeeze_composite = 5.0
         else:
-            score_up_dist = max(0.0, min(45.0, (7.5 - dist_up) * 6.0))
-
-            if cost_up <= 2000.0:
-                score_up_cost = max(30.0, 35.0 - (cost_up / 400.0))
-            elif cost_up <= 15000.0:
-                score_up_cost = max(15.0, 30.0 - ((cost_up - 2000.0) / 866.0))
-            else:
-                score_up_cost = max(2.0, 15.0 - ((cost_up - 15000.0) / 2500.0))
-
-            score_up_imb = max(0.0, min(20.0, (50.0 - ask_ratio) * 0.5))
-            squeeze_prob = round(max(10.0, min(99.0, score_up_dist + score_up_cost + score_up_imb)), 1)
-
+            vol_1m = max(100.0, volume_24h_usdt / 1440.0)
+            lambda_cost_up = cost_up / vol_1m
             import math
+            norm_cost_up = max(0.0, min(1.0, 1.0 - (math.log(1.0 + min(30.0, lambda_cost_up)) / math.log(31.0))))
+
+            base_range_pct = max(3.0, range_24h_pct * 100.0)
+            norm_dist_up = max(0.0, min(1.0, 1.0 - (dist_up / base_range_pct)))
+
+            # 買い優勢（売り板が50%未満）な度合いを 0.0 〜 1.0 に正規化
+            norm_imb_up = max(0.0, min(1.0, (50.0 - ask_ratio) / 50.0))
+
+            weighted_prob_up = (0.40 * norm_dist_up) + (0.40 * norm_cost_up) + (0.20 * norm_imb_up)
+            squeeze_prob = round(10.0 + (89.0 * weighted_prob_up), 1)
+
             vol_ratio_up = round(volume_24h_usdt / cost_up, 1) if cost_up > 0 else 1.0
             log_ratio_up = math.log10(max(1.0, vol_ratio_up))
             score_ratio_up = max(10.0, min(75.0, log_ratio_up * 26.0))
             score_volatility_up = max(5.0, min(24.0, abs(price_change_24h_pct) * 2.0))
             squeeze_impact = round(max(10.0, min(99.0, score_ratio_up + score_volatility_up)), 1)
+
+            # 【総合期待値スコア (Composite EV Score)】
+            squeeze_composite = round(math.sqrt(squeeze_prob * squeeze_impact), 1)
 
         return {
             "symbol": symbol,
@@ -356,6 +374,7 @@ class LiquidityAnalyzer:
             "avalanche_trigger_cost_usdt": avalanche["trigger_cost_usdt"],
             "avalanche_prob_score": avalanche_prob,
             "avalanche_impact_score": avalanche_impact,
+            "avalanche_composite_score": avalanche_composite,
             "risk_score": avalanche_prob,
             "vol_ratio_down": vol_ratio_down,
             # 上昇踏み上げ関連
@@ -365,6 +384,7 @@ class LiquidityAnalyzer:
             "squeeze_trigger_cost_usdt": squeeze["trigger_cost_usdt"],
             "squeeze_prob_score": squeeze_prob,
             "squeeze_impact_score": squeeze_impact,
+            "squeeze_composite_score": squeeze_composite,
             "squeeze_score": squeeze_prob,
             "vol_ratio_up": vol_ratio_up,
             # 板比率

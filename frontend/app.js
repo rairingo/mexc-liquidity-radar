@@ -1,9 +1,9 @@
-// MEXC Liquidity Terminal - Frontend Application Logic (v4.3.0 Watchlist, TV Charts, Wall Thinning & Criteria)
-const APP_VERSION = "4.3.0";
+// MEXC Liquidity Terminal - Frontend Application Logic (v4.4.0 Composite EV & Dimensionless Probability Model)
+const APP_VERSION = "4.4.0";
 
 let marketData = [];
 let currentMode = "all"; // 'all', 'avalanche', 'squeeze'
-let activeSortKey = "opportunity_prob"; // default: Probability
+let activeSortKey = "opportunity_composite"; // default: Composite EV Score
 let activeSortDirection = "desc"; // 'asc' or 'desc'
 let currentViewMode = "table"; // Default to TradingView Screener Table View
 let searchQuery = "";
@@ -240,7 +240,8 @@ async function fetchScanData(isManual = false) {
     if (isManual && refreshIcon) refreshIcon.classList.add("rotating");
 
     const apiMode = currentMode === "watchlist" ? "all" : currentMode;
-    const url = `${API_BASE}/api/scan?mode=${apiMode}`;
+    const sortParam = activeSortKey ? activeSortKey.replace("opportunity_", "") : "composite";
+    const url = `${API_BASE}/api/scan?mode=${apiMode}&sort_by=${sortParam}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -465,7 +466,7 @@ window.toggleInlineChart = function(symbol, e) {
 function renderTable(items, totalCount) {
   if (items.length === 0) {
     const emptyMsg = currentMode === "watchlist" ? t("watchlistEmpty") : t("noData");
-    tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center; color: var(--tv-text-muted); padding: 40px;">${emptyMsg}</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="12" style="text-align: center; color: var(--tv-text-muted); padding: 40px;">${emptyMsg}</td></tr>`;
     renderLoadMore(tableContainer, totalCount);
     return;
   }
@@ -498,6 +499,7 @@ function renderTable(items, totalCount) {
     const isSqueeze = item.opportunity_side === "squeeze";
     const prob = item.opportunity_prob;
     const impact = item.opportunity_impact;
+    const composite = item.opportunity_composite ?? Math.round(Math.sqrt((prob || 5) * (impact || 5)) * 10) / 10;
     const isFav = watchlist.has(item.symbol);
     const isChartOpen = activeChartSymbol === item.symbol;
 
@@ -509,6 +511,7 @@ function renderTable(items, totalCount) {
       : `<span class="col-type-tag tag-long">${t("directionLong")}</span>`;
 
     const impactClass = impact >= 75 ? "score-badge badge-impact high" : "score-badge badge-impact";
+    const compositeClass = composite >= 75 ? "score-badge badge-composite high" : "score-badge badge-composite";
 
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
     const thinningBadge = item.is_wall_thinning ? `<span class="badge-wall-thinning" title="${t('tooltipWallThinning')}">⚡ ${t('badgeWallThinning')}</span>` : '';
@@ -538,6 +541,7 @@ function renderTable(items, totalCount) {
         <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
         <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
         <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
+        <td><span class="${compositeClass}" title="${t('compositeDesc')}">${composite}</span></td>
         <td><span class="score-badge badge-prob">${prob}</span></td>
         <td><span class="${impactClass}">${impact}</span></td>
         <td>
@@ -579,6 +583,7 @@ function renderTable(items, totalCount) {
         <td class="col-mono">$${formatPrice(item.opportunity_target)}</td>
         <td class="col-mono">${isSqueeze ? "+" : "-"}${item.opportunity_distance}%</td>
         <td class="col-mono" style="font-weight: 700; color: ${isSqueeze ? 'var(--tv-green)' : 'var(--tv-red)'}">${formatUSDT(item.opportunity_cost)}</td>
+        <td><span class="${compositeClass}" title="${t('compositeDesc')}">${composite}</span></td>
         <td><span class="score-badge badge-prob">${prob}</span></td>
         <td><span class="${impactClass}">${impact}</span></td>
         <td>
@@ -609,7 +614,7 @@ function renderTable(items, totalCount) {
       chartTr.id = `chart-row-${item.symbol}`;
       const cleanSym = item.symbol.replace("USDT", "");
       chartTr.innerHTML = `
-        <td colspan="11">
+        <td colspan="12">
           <div class="inline-chart-wrapper">
             <iframe src="https://s.tradingview.com/widgetembed/?frameElementId=tradingview_${item.symbol}&symbol=MEXC%3A${cleanSym}USDT&interval=15&hidesidetoolbar=1&symboledit=1&saveimage=0&toolbarbg=131722&theme=dark&style=1&timezone=exchange"
                     style="width: 100%; height: 100%; border: none;"></iframe>
@@ -657,7 +662,9 @@ function renderCards(items, totalCount) {
       ? t("descUp", { cost: formatUSDT(triggerCost), price: formatPrice(targetPrice) })
       : t("descDown", { cost: formatUSDT(triggerCost), price: formatPrice(targetPrice) });
 
+    const composite = item.opportunity_composite ?? Math.round(Math.sqrt((prob || 5) * (impact || 5)) * 10) / 10;
     const impactBadgeClass = impact >= 75 ? "score-badge badge-impact high" : "score-badge badge-impact";
+    const compositeBadgeClass = composite >= 75 ? "score-badge badge-composite high" : "score-badge badge-composite";
 
     const isFav = watchlist.has(item.symbol);
     const starBtn = `<button class="btn-star-pin ${isFav ? 'active' : ''}" onclick="toggleWatchlist('${item.symbol}', event)" title="${isFav ? t('unpinWatchlist') : t('pinWatchlist')}">${isFav ? '★' : '☆'}</button>`;
@@ -675,6 +682,7 @@ function renderCards(items, totalCount) {
             <span class="card-price">$${formatPrice(item.current_price)}</span>
           </div>
           <div class="card-badges-row">
+            <span class="${compositeBadgeClass}" title="${t('compositeDesc')}">${t('compositeScore')}: ${composite}</span>
             <span class="score-badge badge-prob" title="${t('probScore')}">${t('probScore')}: ${prob}</span>
             <span class="${impactBadgeClass}" title="${t('impactScore')}">${t('impactScore')}: ${impact}</span>
           </div>
@@ -833,6 +841,7 @@ function setupExportMenu() {
         "Trigger_Level",
         "Distance_Pct",
         "Trigger_Capital_USDT",
+        "Composite_EV_Score",
         "Probability_Score",
         "Impact_Multiplier",
         "Volume_24h_USDT",
@@ -847,6 +856,7 @@ function setupExportMenu() {
         x.opportunity_target,
         x.opportunity_distance,
         x.opportunity_cost,
+        x.opportunity_composite ?? Math.round(Math.sqrt((x.opportunity_prob || 5) * (x.opportunity_impact || 5)) * 10) / 10,
         x.opportunity_prob,
         x.opportunity_impact,
         x.volume_24h_usdt,

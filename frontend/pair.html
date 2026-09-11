@@ -243,6 +243,16 @@
       <div class="pair-panel">
         <h2>Quantitative Score Model</h2>
 
+        <div style="margin-bottom: 20px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: var(--radius-xs); padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 12px; font-weight: 700; color: #c084fc;">Composite EV Score</span>
+            <span class="score-badge badge-composite" style="font-size: 14px; font-weight: 700;">{{COMPOSITE_SCORE}} / 99</span>
+          </div>
+          <p style="font-size: 11px; color: var(--tv-text-secondary); margin: 0; line-height: 1.4;">
+            Holistic trading opportunity rating via geometric mean √(Probability × Impact Multiplier).
+          </p>
+        </div>
+
         <div style="margin-bottom: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 12px; font-weight: 600; color: var(--tv-text-secondary);">Breakout Probability</span>
@@ -336,12 +346,16 @@
       ctx.fillText("Target Barrier Level: ${{TARGET_PRICE}}", 55, 230);
 
       // Scores Row
-      ctx.font = "13px 'Inter', sans-serif";
+      ctx.font = "bold 13px 'Inter', sans-serif";
+      ctx.fillStyle = "#c084fc";
+      ctx.fillText("Composite EV: {{COMPOSITE_SCORE}} / 99", 40, 275);
+
+      ctx.font = "12px 'Inter', sans-serif";
       ctx.fillStyle = "#2962ff";
-      ctx.fillText("Breakout Probability: {{PROB_SCORE}} / 99", 40, 275);
+      ctx.fillText("Prob: {{PROB_SCORE}} / 99", 250, 275);
 
       ctx.fillStyle = "#ff9800";
-      ctx.fillText("Impact Multiplier: {{IMPACT_SCORE}} / 99", 320, 275);
+      ctx.fillText("Impact: {{IMPACT_SCORE}} / 99", 440, 275);
 
       // Footer URL Callout
       ctx.fillStyle = "#242835";
@@ -353,7 +367,7 @@
 
       const shareText = "[MEXC RADAR] {{SYMBOL}} {{OPP_TYPE_TEXT}}\n" +
         "Capital Needed: ${{TRIGGER_COST}} USDT (Distance: {{DIST_SIGN}}{{DISTANCE}}%)\n" +
-        "Probability: {{PROB_SCORE}}/99 | Impact: {{IMPACT_SCORE}}/99\n" +
+        "Composite EV: {{COMPOSITE_SCORE}}/99 | Prob: {{PROB_SCORE}}/99 | Impact: {{IMPACT_SCORE}}/99\n" +
         "Live Orderbook: " + window.location.href;
 
       // Copy Image to Clipboard if supported, otherwise copy text
