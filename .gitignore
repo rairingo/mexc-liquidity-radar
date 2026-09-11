@@ -42,3 +42,9 @@ Desktop.ini
 
 # Logs
 *.log
+
+# Local secrets & sensitive notes (DO NOT PUSH TO PUBLIC GITHUB)
+SYSTEM_OVERVIEW.md
+*.pem
+.env
+

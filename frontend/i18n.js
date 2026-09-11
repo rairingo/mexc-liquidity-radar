@@ -92,7 +92,14 @@ const TRANSLATIONS = {
     sec3Title: "3. Dual-Score Evaluation Model",
     sec3Text: "• Probability Score (0-99): Derived from proximity to line, low trigger capital, and orderbook imbalance.\n• Impact Multiplier (0-99): Evaluates liquidity trap severity by comparing 24h turnover against the thin wall.",
     sec4Title: "Disclaimer & Risk Warning",
-    sec4Text: "All metrics are computed objectively from public MEXC orderbook data. This terminal does not provide financial advice, trading signals, or solicitation. Crypto trading entails high risk."
+    sec4Text: "All metrics are computed objectively from public MEXC orderbook data. This terminal does not provide financial advice, trading signals, or solicitation. Crypto trading entails high risk.",
+    
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "Trade {symbol} on MEXC",
+    gatewayDesc: "Do you already have an official MEXC trading account?",
+    gatewayRegister: "New User: Sign Up (Permanent Fee Discount: 3tZTP)",
+    gatewayTrade: "Existing User: Open Trading Chart Directly",
+    gatewayRemember: "Remember my choice and skip this dialog next time"
   },
   ja: {
     appTitle: "MEXC板監視ターミナル",
@@ -176,7 +183,14 @@ const TRANSLATIONS = {
     sec3Title: "3. 確率 ＆ 破壊力の二軸評価モデル",
     sec3Text: "• 発生確率スコア (0-99): 節目までの距離の近さ、必要資金の少なさ、板不均衡から算出。\n• 破壊力スコア (0-99): 出来高に対して板がどれほど薄いか（流動性トラップ倍率）を評価。",
     sec4Title: "免責事項・データ利用上の注意",
-    sec4Text: "本システムで表示されるデータはMEXC公開APIより取得した数値を機械的に分析した客観的指標です。投資助言や勧誘を目的としたものではありません。"
+    sec4Text: "本システムで表示されるデータはMEXC公開APIより取得した数値を機械的に分析した客観的指標です。投資助言や勧誘を目的としたものではありません。",
+
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "MEXCで {symbol} を取引",
+    gatewayDesc: "MEXCの取引口座をお持ちですか？",
+    gatewayRegister: "新規口座開設して取引（招待コード: 3tZTP で手数料永久割引）",
+    gatewayTrade: "既存のアカウントで取引画面へ移動",
+    gatewayRemember: "次回からこの確認を表示せず直接取引画面を開く"
   },
   zh: {
     appTitle: "MEXC 深度清算终端",
@@ -260,7 +274,14 @@ const TRANSLATIONS = {
     sec3Title: "3. 双维度评估系统",
     sec3Text: "• 概率得分 (0-99): 基于距关键位百分比、突破成本及深度失衡。\n• 破坏力得分 (0-99): 比较 24 小时成交量与盘口薄厚，评估流动性陷阱引发的波动幅度。",
     sec4Title: "免责声明",
-    sec4Text: "本终端所有数据均源自 MEXC 公开 API 自动化计算，不构成任何投资建议或交易邀请。"
+    sec4Text: "本终端所有数据均源自 MEXC 公开 API 自动化计算，不构成任何投资建议或交易邀请。",
+
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "在 MEXC 交易 {symbol}",
+    gatewayDesc: "您已拥有 MEXC 官方交易账户吗？",
+    gatewayRegister: "新用户：立即注册（永久手续费折扣：3tZTP）",
+    gatewayTrade: "已有账户：直接前往交易图表",
+    gatewayRemember: "记住我的选择，下次不再显示此提示"
   },
   ko: {
     appTitle: "MEXC 오더북 유동성 터미널",
@@ -344,7 +365,14 @@ const TRANSLATIONS = {
     sec3Title: "3. 확률 및 파괴력 이중 평가 모델",
     sec3Text: "• 발생 확률 (0-99): 라인과의 거리, 소요 자금의 적음, 호가 불균형 종합.\n• 파괴력 (0-99): 24시간 거래대금 대비 호가벽 두께를 비교해 유동성 트랩의 폭발성을 평가.",
     sec4Title: "면책 사항",
-    sec4Text: "본 터미널의 모든 데이터는 MEXC 공개 API로부터 기계적으로 분석한 객관적 지표이며, 투자 권유가 아닙니다."
+    sec4Text: "본 터미널의 모든 데이터는 MEXC 공개 API로부터 기계적으로 분석한 객관적 지표이며, 투자 권유가 아닙니다.",
+
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "MEXC에서 {symbol} 거래",
+    gatewayDesc: "공식 MEXC 거래 계정을 이미 보유하고 계신가요?",
+    gatewayRegister: "신규 가입: 회원가입 (영구 수수료 할인: 3tZTP)",
+    gatewayTrade: "기존 계정으로 거래 화면 이동",
+    gatewayRemember: "다음에는 이 안내를 건너뛰고 바로 거래 화면으로 이동"
   },
   es: {
     appTitle: "Terminal de Liquidez MEXC",
@@ -428,7 +456,14 @@ const TRANSLATIONS = {
     sec3Title: "3. Modelo de Evaluación Dual",
     sec3Text: "• Probabilidad (0-99): Proximidad, bajo costo y asimetría del libro.\n• Impacto (0-99): Relación entre volumen 24h y profundidad de la pared de órdenes.",
     sec4Title: "Aviso Legal",
-    sec4Text: "Datos analizados objetivamente desde la API pública de MEXC. No constituye asesoramiento financiero."
+    sec4Text: "Datos analizados objetivamente desde la API pública de MEXC. No constituye asesoramiento financiero.",
+
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "Operar {symbol} en MEXC",
+    gatewayDesc: "¿Ya tienes una cuenta oficial de trading en MEXC?",
+    gatewayRegister: "Nuevo usuario: Regístrate (Descuento permanente de comisiones: 3tZTP)",
+    gatewayTrade: "Usuario existente: Ir directamente al gráfico",
+    gatewayRemember: "Recordar mi elección y omitir este diálogo la próxima vez"
   },
   vi: {
     appTitle: "Terminal Thanh Khoản MEXC",
@@ -512,7 +547,14 @@ const TRANSLATIONS = {
     sec3Title: "3. Mô Hình Đánh Giá Kép",
     sec3Text: "• Điểm xác suất (0-99): Gần ngưỡng, vốn kích hoạt nhỏ và chênh lệch sổ lệnh.\n• Điểm tác động (0-99): So sánh khối lượng 24h với độ mỏng của tường lệnh để đo độ nén thanh khoản.",
     sec4Title: "Cảnh Báo Rủi Ro",
-    sec4Text: "Dữ liệu được tính toán khách quan từ API công khai của MEXC. Không cấu thành lời khuyên đầu tư."
+    sec4Text: "Dữ liệu được tính toán khách quan từ API công khai của MEXC. Không cấu thành lời khuyên đầu tư.",
+
+    // MEXC Smart Gateway Modal
+    gatewayTitle: "Giao dịch {symbol} trên MEXC",
+    gatewayDesc: "Bạn đã có tài khoản giao dịch chính thức trên MEXC chưa?",
+    gatewayRegister: "Người dùng mới: Đăng ký ngay (Giảm phí vĩnh viễn: 3tZTP)",
+    gatewayTrade: "Người dùng cũ: Đi thẳng đến biểu đồ giao dịch",
+    gatewayRemember: "Nhớ lựa chọn của tôi và bỏ qua hộp thoại này lần sau"
   }
 };
 

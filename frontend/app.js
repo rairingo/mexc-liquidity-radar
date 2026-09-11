@@ -1,4 +1,5 @@
-// MEXC Liquidity Terminal - Frontend Application Logic (v4.0 TradingView Pro Edition)
+// MEXC Liquidity Terminal - Frontend Application Logic (v4.1 Gateway Modal Edition)
+const APP_VERSION = "4.1.2";
 
 let marketData = [];
 let currentMode = "all"; // 'all', 'avalanche', 'squeeze'
@@ -398,7 +399,7 @@ function renderTable(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
               Details
             </a>
-            <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="tv-table-link" title="Trade on MEXC (Fee Discount Applied)">
+            <a href="${getMexcTradeUrl(item)}" class="tv-table-link mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" title="Trade on MEXC">
               MEXC ↗
             </a>
           </div>
@@ -432,7 +433,7 @@ function renderTable(items, totalCount) {
             <a href="/pair/${item.symbol}" class="tv-table-link" style="color: var(--tv-text-secondary); border-color: var(--tv-border);">
               Details
             </a>
-            <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="tv-table-link" title="Trade on MEXC (Fee Discount Applied)">
+            <a href="${getMexcTradeUrl(item)}" class="tv-table-link mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" title="Trade on MEXC">
               MEXC ↗
             </a>
           </div>
@@ -444,6 +445,7 @@ function renderTable(items, totalCount) {
 
   // Load more handling for table
   renderLoadMore(tableContainer, totalCount);
+  attachGatewayListeners();
 }
 
 // Render Card Grid View
@@ -529,7 +531,7 @@ function renderCards(items, totalCount) {
       </div>
 
       <div style="display: flex; gap: 8px;">
-        <a href="${getMexcTradeUrl(item)}" target="_blank" rel="noopener noreferrer" class="card-action-btn" style="flex: 2;" title="Trade on MEXC (Fee Discount Applied)">
+        <a href="${getMexcTradeUrl(item)}" class="card-action-btn mexc-gateway-link" data-trade-url="${getMexcTradeUrl(item)}" data-symbol="${item.symbol}" style="flex: 2;" title="Trade on MEXC">
           ${t("tradeOnMexc")} ↗
         </a>
         <button onclick="copyShareText('${item.symbol}', '${item.opportunity_side}', ${item.opportunity_cost}, ${item.opportunity_target}, ${prob}, ${impact})" class="card-action-btn" style="flex: 1; cursor: pointer; color: #38bdf8; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Copy Alert for Discord/Telegram">
@@ -544,6 +546,7 @@ function renderCards(items, totalCount) {
 
   // Load more handling for cards
   renderLoadMore(cardsContainer, totalCount);
+  attachGatewayListeners();
 }
 
 // Render "Load More" button if needed
@@ -820,8 +823,122 @@ window.onLanguageChange = function (newLang) {
   renderDashboard();
 };
 
+// =========================================================================
+// MEXC Smart Gateway Modal
+// Shows two choices when user clicks "MEXC ↗":
+//   1. New User → /register?inviteCode=3tZTP  (affiliate link)
+//   2. Existing User → direct trading chart URL
+// Preference stored in localStorage so repeat users skip the dialog.
+// =========================================================================
+
+const MEXC_REGISTER_URL = `https://www.mexc.com/register?inviteCode=${MEXC_INVITE_CODE}`;
+
+let _gatewayTradeUrl = "";
+
+function openMexcGateway(tradeUrl, symbolLabel) {
+  console.log("[Gateway] openMexcGateway called", { tradeUrl, symbolLabel });
+
+  // If user previously chose "always go direct", skip the modal
+  const pref = localStorage.getItem("mexc_gateway_pref");
+  console.log("[Gateway] pref =", pref);
+  if (pref === "trade") {
+    window.open(tradeUrl, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (pref === "register") {
+    window.open(MEXC_REGISTER_URL, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  try {
+    // Populate modal
+    _gatewayTradeUrl = tradeUrl;
+    const langTitle  = t("gatewayTitle").replace("{symbol}", symbolLabel);
+
+    document.getElementById("gateway-title").textContent = langTitle;
+    document.getElementById("gateway-desc").textContent  = t("gatewayDesc");
+    document.getElementById("gateway-btn-register-text").textContent = t("gatewayRegister");
+    document.getElementById("gateway-btn-trade-text").textContent    = t("gatewayTrade");
+    document.getElementById("gateway-remember-text").textContent     = t("gatewayRemember");
+
+    document.getElementById("gateway-trade-btn").href = tradeUrl;
+    document.getElementById("gateway-remember-choice").checked = false;
+
+    const modal = document.getElementById("mexc-gateway-modal");
+    console.log("[Gateway] modal element:", modal);
+    if (!modal) {
+      console.error("[Gateway] Modal element #mexc-gateway-modal NOT FOUND!");
+      window.open(tradeUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+    modal.style.display = "flex";
+    console.log("[Gateway] Modal should now be visible");
+  } catch (err) {
+    console.error("[Gateway] Error in openMexcGateway:", err);
+    window.open(tradeUrl, "_blank", "noopener,noreferrer");
+  }
+}
+
+function closeMexcGateway() {
+  const modal = document.getElementById("mexc-gateway-modal");
+  if (modal) modal.style.display = "none";
+}
+
+function setupGatewayModal() {
+  const registerBtn = document.getElementById("gateway-register-btn");
+  const tradeBtn    = document.getElementById("gateway-trade-btn");
+  const closeBtn    = document.getElementById("gateway-close-btn");
+  const modalDiv   = document.getElementById("mexc-gateway-modal");
+  const rememberCb  = document.getElementById("gateway-remember-choice");
+
+  if (!registerBtn) return;
+
+  registerBtn.addEventListener("click", () => {
+    if (rememberCb.checked) {
+      localStorage.setItem("mexc_gateway_pref", "register");
+    }
+    closeMexcGateway();
+  });
+
+  tradeBtn.addEventListener("click", () => {
+    if (rememberCb.checked) {
+      localStorage.setItem("mexc_gateway_pref", "trade");
+    }
+    closeMexcGateway();
+  });
+
+  if (closeBtn) closeBtn.addEventListener("click", closeMexcGateway);
+  // Click on backdrop (parent overlay) to close
+  if (modalDiv) modalDiv.addEventListener("click", (e) => {
+    if (e.target === modalDiv) closeMexcGateway();
+  });
+}
+
+// Helper: intercept link click and show gateway
+function mexcLinkClickHandler(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  console.log("[Gateway] Click intercepted!", e.currentTarget.dataset);
+  const tradeUrl   = e.currentTarget.dataset.tradeUrl || e.currentTarget.href;
+  const symbolLabel = e.currentTarget.dataset.symbol || "this pair";
+  openMexcGateway(tradeUrl, symbolLabel);
+  return false;
+}
+
+// Attach gateway intercept to freshly rendered links after each render
+function attachGatewayListeners() {
+  const links = document.querySelectorAll("a.mexc-gateway-link");
+  console.log(`[Gateway] Attaching listeners to ${links.length} links`);
+  links.forEach(link => {
+    link.removeEventListener("click", mexcLinkClickHandler);
+    link.addEventListener("click", mexcLinkClickHandler);
+  });
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
+  console.log(`%c MEXC Liquidity Terminal v${APP_VERSION} `, "background:#2962ff;color:#fff;font-weight:bold;border-radius:4px;padding:2px 6px;");
+
   loadSettings();
   setupModeTabs();
   setupSortPills();
@@ -831,6 +948,11 @@ document.addEventListener("DOMContentLoaded", () => {
   setupModal();
   setupSettingsModal();
   setupAudioToggle();
+  setupGatewayModal();
+
+  // Inject version badge into page
+  const versionBadge = document.getElementById("app-version-badge");
+  if (versionBadge) versionBadge.textContent = `v${APP_VERSION}`;
 
   // Initial Data Load
   fetchScanData(false);

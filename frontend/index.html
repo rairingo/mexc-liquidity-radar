@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-JR3FFJ60ZH"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-JR3FFJ60ZH');
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MEXC Liquidity Terminal - Orderbook Radar & Liquidation Screener</title>
@@ -8,7 +16,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=4.1.2">
 </head>
 <body class="tv-theme">
   <!-- Top Financial Navigation Bar -->
@@ -20,6 +28,7 @@
           <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
         </svg>
         <span class="brand-name" data-i18n="appTitle">MEXC Liquidity Terminal</span>
+        <span id="app-version-badge" style="font-size: 9px; font-weight: 600; color: var(--tv-text-muted); background: var(--tv-bg-elevated); padding: 1px 6px; border-radius: 3px; margin-left: 6px; letter-spacing: 0.5px;">v4.1.2</span>
       </div>
       <div class="brand-tag" data-i18n="appSubtitle">Altcoin Orderbook Radar & Liquidation Hunter</div>
     </div>
@@ -317,10 +326,44 @@
           <button id="btn-apply-settings" class="tv-btn tv-btn-primary" data-i18n="btnApply">Apply & Save Filters</button>
         </div>
       </div>
+  </div>
+
+  <!-- MEXC Trade / Register Smart Modal for Directing Unregistered Users -->
+  <div id="mexc-gateway-modal" style="display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.6); align-items: flex-start; justify-content: center; padding-top: 80px;">
+    <div class="tv-modal-dialog" style="position: relative; max-width: 440px; width: 90%; background: var(--tv-bg-surface); border: 1px solid var(--tv-border); border-radius: var(--radius-md); box-shadow: 0 12px 36px rgba(0,0,0,0.5);" onclick="event.stopPropagation();">
+      <div class="tv-modal-header" style="border-bottom: 1px solid var(--tv-border); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 15px; font-weight: 700; color: var(--tv-text-bright); display: flex; align-items: center; gap: 8px;">
+          <span>🚀</span>
+          <span id="gateway-title">Trade on MEXC</span>
+        </div>
+        <button id="gateway-close-btn" style="background: transparent; border: none; color: var(--tv-text-secondary); cursor: pointer; font-size: 18px;">&times;</button>
+      </div>
+      <div style="padding: 24px 20px; text-align: center;">
+        <div style="font-size: 13px; color: var(--tv-text-secondary); margin-bottom: 20px; line-height: 1.5;" id="gateway-desc">
+          Do you already have an official MEXC trading account?
+        </div>
+
+        <!-- Option 1: Direct Affiliate Register (Recommended & Prominent) -->
+        <a id="gateway-register-btn" href="https://www.mexc.com/register?inviteCode=3tZTP" target="_blank" rel="noopener noreferrer" 
+           class="tv-btn tv-btn-primary" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; font-size: 13px; font-weight: 700; margin-bottom: 12px; text-decoration: none; border-radius: var(--radius-sm);">
+          🎁 <span id="gateway-btn-register-text">New User: Sign Up (Permanent Fee Discount: 3tZTP)</span> ↗
+        </a>
+
+        <!-- Option 2: Direct Trade for Existing Users -->
+        <a id="gateway-trade-btn" href="#" target="_blank" rel="noopener noreferrer" 
+           class="tv-btn tv-btn-secondary" style="display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; font-size: 12px; text-decoration: none; border-color: var(--tv-border); border-radius: var(--radius-sm);">
+          <span id="gateway-btn-trade-text">Existing User: Go to Trading Chart</span> ↗
+        </a>
+
+        <div style="margin-top: 18px; font-size: 11px; color: var(--tv-text-muted); display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <input type="checkbox" id="gateway-remember-choice" style="cursor: pointer;">
+          <label for="gateway-remember-choice" style="cursor: pointer;" id="gateway-remember-text">Remember my choice and skip this dialog next time</label>
+        </div>
+      </div>
     </div>
   </div>
 
-  <script src="i18n.js"></script>
-  <script src="app.js"></script>
+  <script src="i18n.js?v=4.1.2"></script>
+  <script src="app.js?v=4.1.2"></script>
 </body>
 </html>
