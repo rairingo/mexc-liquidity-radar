@@ -369,9 +369,13 @@ async def sitemap_xml(request: Request):
         f"  <url>\n    <loc>{base_url}/screener/long-liquidation-cascade</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.9</priority>\n  </url>",
     ]
 
+    import urllib.parse
+
     for sym in symbols:
+        # 中国語や特殊文字を含むミームコインを正しくURLエンコード
+        encoded_sym = urllib.parse.quote(sym, safe="")
         urls.append(
-            f"  <url>\n    <loc>{base_url}/pair/{sym}</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.7</priority>\n  </url>"
+            f"  <url>\n    <loc>{base_url}/pair/{encoded_sym}</loc>\n    <changefreq>hourly</changefreq>\n    <priority>0.7</priority>\n  </url>"
         )
 
     xml_content = (
